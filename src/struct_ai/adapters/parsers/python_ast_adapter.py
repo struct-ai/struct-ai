@@ -16,7 +16,10 @@ class PythonAstAdapter(CodeParserPort):
         Raises InvalidCodeError if the code is invalid; in case of SyntaxError,
         the lines of the code are provided in the exception.
         """
+        if code.strip() == "":
+            raise InvalidCodeError(message="Empty code", lines=[""])
         lines = code.split("\n")
+
         try:
             tree = ast.parse(code)
         except SyntaxError as e:

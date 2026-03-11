@@ -1,3 +1,15 @@
+[project]
+name = "struct-ai"
+version = "0.1.0"
+dependencies = [
+    "pydantic",
+]
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
 [tool.black]
 line-length = 88
 target-version = ['py312']
