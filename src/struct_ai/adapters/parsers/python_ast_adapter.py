@@ -1,8 +1,9 @@
-from struct_ai.core.entities.imports import ImportDependency
-from struct_ai.core.interfaces.outputs.code_parser_port import CodeParserPort
 import ast
 from typing import List
+
+from struct_ai.core.entities.imports import ImportDependency
 from struct_ai.core.exceptions.exceptions import InvalidCodeError
+from struct_ai.core.interfaces.outputs.code_parser_port import CodeParserPort
 
 
 class PythonAstAdapter(CodeParserPort):  # type: ignore[misc]
