@@ -4,8 +4,9 @@ version = "0.1.0"
 dependencies = [
     "pydantic",
 ]
+
 [project.optional-dependencies]
-dev = ["pytest", "loguru"]
+dev = ["pytest", "loguru", "ruff", "black", "mypy", "isort"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
