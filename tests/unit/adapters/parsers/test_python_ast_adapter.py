@@ -13,7 +13,7 @@ from struct_ai.core.exceptions.exceptions import InvalidCodeError
 
 
 @pytest.fixture
-def adapter():
+def adapter() -> PythonAstAdapter:
     """Shared PythonAstAdapter instance."""
     return PythonAstAdapter()
 
@@ -21,19 +21,19 @@ def adapter():
 # --- Happy path ---
 
 
-def test_parse_code_returns_empty_list_when_no_imports(adapter):
+def test_parse_code_returns_empty_list_when_no_imports(adapter: PythonAstAdapter) -> None:
     """Code with no import statements returns an empty list."""
     result = adapter.parse_code("x = 1\n")
     assert result == []
 
 
-def test_parse_code_returns_empty_list_for_empty_string(adapter):
+def test_parse_code_returns_empty_list_for_empty_string(adapter: PythonAstAdapter) -> None:
     """Empty string raises SyntaxError and thus InvalidCodeError (empty is invalid)."""
     with pytest.raises(InvalidCodeError):
         adapter.parse_code("")
 
 
-def test_parse_code_single_import(adapter):
+def test_parse_code_single_import(adapter: PythonAstAdapter) -> None:
     """Single 'import os' returns one ImportDependency with correct fields."""
     result = adapter.parse_code("import os\n")
     assert len(result) == 1
@@ -42,7 +42,7 @@ def test_parse_code_single_import(adapter):
     assert result[0].names == ["os"]
 
 
-def test_parse_code_from_import_single_name(adapter):
+def test_parse_code_from_import_single_name(adapter: PythonAstAdapter) -> None:
     """'from foo import bar' returns one entry with module foo and name bar."""
     result = adapter.parse_code("from foo import bar\n")
     assert len(result) == 1
@@ -51,7 +51,7 @@ def test_parse_code_from_import_single_name(adapter):
     assert result[0].names == ["bar"]
 
 
-def test_parse_code_from_import_multiple_names(adapter):
+def test_parse_code_from_import_multiple_names(adapter: PythonAstAdapter) -> None:
     """'from foo import bar, baz' returns two entries, same module and line."""
     result = adapter.parse_code("from foo import bar, baz\n")
     assert len(result) == 2
@@ -63,7 +63,7 @@ def test_parse_code_from_import_multiple_names(adapter):
     assert result[1].names == ["baz"]
 
 
-def test_parse_code_mixed_import_and_from_import(adapter):
+def test_parse_code_mixed_import_and_from_import(adapter: PythonAstAdapter) -> None:
     """Mix of 'import' and 'from ... import' returns all entries with correct data."""
     code = "import os\nfrom sys import path\n"
     result = adapter.parse_code(code)
@@ -75,7 +75,7 @@ def test_parse_code_mixed_import_and_from_import(adapter):
     assert line_numbers == {1, 2}
 
 
-def test_parse_code_line_numbers_reflect_source_lines(adapter):
+def test_parse_code_line_numbers_reflect_source_lines(adapter: PythonAstAdapter) -> None:
     """Imports on later lines have correct line_number."""
     code = "\n\nimport os\n"
     result = adapter.parse_code(code)
@@ -87,7 +87,7 @@ def test_parse_code_line_numbers_reflect_source_lines(adapter):
 # --- Edge cases (aliases, multi-module, relative, star, nested) ---
 
 
-def test_parse_code_import_with_alias(adapter):
+def test_parse_code_import_with_alias(adapter: PythonAstAdapter) -> None:
     """'import os as operating_system' stores module os and local name operating_system."""
     result = adapter.parse_code("import os as operating_system\n")
     assert len(result) == 1
@@ -95,7 +95,7 @@ def test_parse_code_import_with_alias(adapter):
     assert result[0].names == ["operating_system"]
 
 
-def test_parse_code_import_multiple_modules(adapter):
+def test_parse_code_import_multiple_modules(adapter: PythonAstAdapter) -> None:
     """'import a, b' returns two entries."""
     result = adapter.parse_code("import a, b\n")
     assert len(result) == 2
@@ -104,7 +104,7 @@ def test_parse_code_import_multiple_modules(adapter):
     assert result[0].line_number == result[1].line_number == 1
 
 
-def test_parse_code_relative_import_dot_only(adapter):
+def test_parse_code_relative_import_dot_only(adapter: PythonAstAdapter) -> None:
     """'from . import something' has module_name '.'."""
     result = adapter.parse_code("from . import something\n")
     assert len(result) == 1
@@ -112,7 +112,7 @@ def test_parse_code_relative_import_dot_only(adapter):
     assert result[0].names == ["something"]
 
 
-def test_parse_code_relative_import_dot_dot_module(adapter):
+def test_parse_code_relative_import_dot_dot_module(adapter: PythonAstAdapter) -> None:
     """'from ..pkg import x' has module_name '..pkg'."""
     result = adapter.parse_code("from ..pkg import x\n")
     assert len(result) == 1
@@ -120,13 +120,13 @@ def test_parse_code_relative_import_dot_dot_module(adapter):
     assert result[0].names == ["x"]
 
 
-def test_parse_code_from_import_with_star_ignored(adapter):
+def test_parse_code_from_import_with_star_ignored(adapter: PythonAstAdapter) -> None:
     """'from foo import *' produces no ImportDependency (star is skipped)."""
     result = adapter.parse_code("from foo import *\n")
     assert result == []
 
 
-def test_parse_code_imports_inside_function_included(adapter):
+def test_parse_code_imports_inside_function_included(adapter: PythonAstAdapter) -> None:
     """Imports inside a function are collected (ast.walk visits all nodes)."""
     code = """
 def f():
@@ -141,13 +141,13 @@ def f():
 # --- Invalid code (InvalidCodeError) ---
 
 
-def test_parse_code_invalid_syntax_raises_invalid_code_error(adapter):
+def test_parse_code_invalid_syntax_raises_invalid_code_error(adapter: PythonAstAdapter) -> None:
     """Invalid Python source raises InvalidCodeError, not SyntaxError."""
     with pytest.raises(InvalidCodeError):
         adapter.parse_code("def f(\n")
 
 
-def test_parse_code_invalid_syntax_exception_contains_message_in_log(adapter):
+def test_parse_code_invalid_syntax_exception_contains_message_in_log(adapter: PythonAstAdapter) -> None:
     """InvalidCodeError.log contains the original error message."""
     code = "x = (\n"
     with pytest.raises(InvalidCodeError) as exc_info:
@@ -156,7 +156,7 @@ def test_parse_code_invalid_syntax_exception_contains_message_in_log(adapter):
     assert exc_info.value.log["message"] is not None
 
 
-def test_parse_code_invalid_syntax_exception_contains_lines_in_log(adapter):
+def test_parse_code_invalid_syntax_exception_contains_lines_in_log(adapter: PythonAstAdapter) -> None:
     """InvalidCodeError.log contains the code lines."""
     code = "line one\nline two ( broken\n"
     with pytest.raises(InvalidCodeError) as exc_info:

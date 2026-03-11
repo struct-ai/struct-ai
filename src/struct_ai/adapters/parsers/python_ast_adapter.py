@@ -5,7 +5,7 @@ from typing import List
 from struct_ai.core.exceptions.exceptions import InvalidCodeError
 
 
-class PythonAstAdapter(CodeParserPort):
+class PythonAstAdapter(CodeParserPort): # type: ignore[misc]
     """
     Adapter for the Python AST parser.
     """
