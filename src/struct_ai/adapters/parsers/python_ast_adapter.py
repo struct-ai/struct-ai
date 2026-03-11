@@ -1,11 +1,12 @@
-from struct_ai.core.entities.imports import ImportDependency
-from struct_ai.core.interfaces.outputs.code_parser_port import CodeParserPort
 import ast
 from typing import List
+
+from struct_ai.core.entities.imports import ImportDependency
 from struct_ai.core.exceptions.exceptions import InvalidCodeError
+from struct_ai.core.interfaces.outputs.code_parser_port import CodeParserPort
 
 
-class PythonAstAdapter(CodeParserPort):
+class PythonAstAdapter(CodeParserPort):  # type: ignore[misc]
     """
     Adapter for the Python AST parser.
     """
@@ -50,7 +51,9 @@ class PythonAstAdapter(CodeParserPort):
             )
         return result
 
-    def _import_from_node_to_dependencies(self, node: ast.ImportFrom) -> List[ImportDependency]:
+    def _import_from_node_to_dependencies(
+        self, node: ast.ImportFrom
+    ) -> List[ImportDependency]:
         """Convert a single ast.ImportFrom node into a list of ImportDependency."""
         module_str = "." * node.level + (node.module or "")
         result: List[ImportDependency] = []

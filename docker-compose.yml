@@ -1,0 +1,12 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/app
+    working_dir: /app
+    command: pytest
+    environment:
+      - PYTHONPATH=/app/src
+      - PYTHONUNBUFFERED=1
