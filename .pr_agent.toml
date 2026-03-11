@@ -1,7 +1,22 @@
-version = "1.0"
+[github_app]
+pr_command = [
+    "/agentic_describe",
+    "/agentic_review"
+]
 
-[commands.branch-push-issue-pr-sync]
-available_tools = ["Code Navigation", "filesystem", "git", "Terminal"]
+[review_agent] 
+# "both" mode is too noisy, keep in "summary" mode in this repo
+comments_location_policy = "both" 
+
+# severity threshold rank for inline comments: 
+# 3=action_required, 
+# 2=remediation_recommended, 
+# 1=informational. 
+# Only findings with rank >= threshold will be published inline
+inline_comments_severity_threshold = 3
+
+
+issues_user_guidelines = "
 description = "On branch push, locate related issue, update its link with the branch, and update/create the PR (draft or open) to reflect progress."
 instructions = """
 You are a code workflow assistant bot running the `branch-push-issue-pr-sync` workflow. Follow these steps strictly.
@@ -17,7 +32,8 @@ You are a code workflow assistant bot running the `branch-push-issue-pr-sync` wo
   - Some steps may require user input or confirmation.
 
 ---
-
+"
+compliance_user_guidelines = "
 ### global conventions
 - Do not execute these steps yourself.
 - Describe what the agent must do later.
@@ -128,3 +144,4 @@ You are a code workflow assistant bot running the `branch-push-issue-pr-sync` wo
 - outputs:
   - A concise summary and audit trail of the synchronization.
 """
+"
