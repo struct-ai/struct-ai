@@ -5,7 +5,7 @@ dependencies = [
     "pydantic",
 ]
 [project.optional-dependencies]
-dev = ["pytest"]
+dev = ["pytest", "loguru"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -30,21 +30,18 @@ source .venv/bin/activate   # Linux / macOS
 
 ### 3. Install dependencies
 
-The project uses `pyproject.toml` for tooling (Black, isort, mypy). Runtime dependencies are not yet declared in a `[project]` section; install them manually:
+Install the package in editable mode with **runtime** dependencies:
 
 ```bash
 pip install --upgrade pip
-pip install pydantic loguru typer
-pip install -e .   # installs the struct_ai package in editable mode (once [project] is added)
+pip install -e .
 ```
 
-For **development tools** (tests, formatting, type-checking):
+For **development** (tests, formatting, type-checking), install the `dev` extra so that test dependencies (e.g. `pytest`, `loguru`) are available:
 
 ```bash
-pip install pytest black isort mypy
+pip install -e ".[dev]"
 ```
-
-*(Consider adding a `requirements.txt` or a `[project]` section in `pyproject.toml` with these dependencies for a one-command setup.)*
 
 ---
 

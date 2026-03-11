@@ -16,7 +16,7 @@ comments_location_policy = "both"
 inline_comments_severity_threshold = 3
 
 
-issues_user_guidelines = "
+issues_user_guidelines = '''
 description = "On branch push, locate related issue, update its link with the branch, and update/create the PR (draft or open) to reflect progress."
 instructions = """
 You are a code workflow assistant bot running the `branch-push-issue-pr-sync` workflow. Follow these steps strictly.
@@ -32,8 +32,9 @@ You are a code workflow assistant bot running the `branch-push-issue-pr-sync` wo
   - Some steps may require user input or confirmation.
 
 ---
-"
-compliance_user_guidelines = "
+"""
+'''
+compliance_user_guidelines = '''
 ### global conventions
 - Do not execute these steps yourself.
 - Describe what the agent must do later.
@@ -143,5 +144,4 @@ compliance_user_guidelines = "
   - Record the timestamp of last sync in PR body or as a comment.
 - outputs:
   - A concise summary and audit trail of the synchronization.
-"""
-"
+'''
