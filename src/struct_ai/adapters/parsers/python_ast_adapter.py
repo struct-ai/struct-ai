@@ -23,7 +23,7 @@ class PythonAstAdapter(CodeParserPort):
         try:
             tree = ast.parse(code)
         except SyntaxError as e:
-            raise InvalidCodeError(message=str(e), lines=lines)
+            raise InvalidCodeError(message=str(e), lines=lines) from e
         return self._collect_imports_from_tree(tree)
 
     def _collect_imports_from_tree(self, tree: ast.AST) -> List[ImportDependency]:

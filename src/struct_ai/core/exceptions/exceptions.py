@@ -6,17 +6,22 @@ class InvalidCodeError(Exception):
     Stores the original error message and/or code lines in a log attribute,
     without exposing implementation details.
     """
-    def __init__(self, message: str = None, *, lines: list[str] = None):
+    def __init__(
+        self,
+        message: str | None = None,
+        *,
+        lines: list[str] | None = None,
+    ) -> None:
         super().__init__("Invalid code error.")
-        self._log = {
+        self._log: dict[str, object | None] = {
             "message": message,
-            "lines": lines
+            "lines": lines,
         }
 
     @property
-    def log(self):
+    def log(self) -> dict[str, object | None]:
         """
-        Returns sanitized log info (message and/or lines), 
+        Returns sanitized log info (message and/or lines),
         without exposing domain implementation details.
         """
         return self._log
