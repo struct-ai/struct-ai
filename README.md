@@ -86,6 +86,31 @@ See `doc/intro.md` and `doc/structure.md` for product vision and detailed archit
 
 ---
 
+## Code parser (import analysis)
+
+The project provides a **code parser** that extracts import dependencies from Python source without executing code.
+
+- **Interface** : `CodeParserPort` (`core/interfaces/outputs/code_parser_port.py`) — abstract method `parse_code(code: str) -> List[ImportDependency]`.
+- **Implementation** : `PythonAstAdapter` (`adapters/parsers/python_ast_adapter.py`) — uses the standard library `ast` module to walk the AST and collect `import` / `from ... import ...` statements. Each result is an `ImportDependency` with `module_name`, `line_number`, and `names` (imported symbols).
+- **Error handling** : Empty or whitespace-only code, or invalid Python syntax, raises `InvalidCodeError`. The exception has a `.log` property with `message` and `lines` for debugging.
+
+**Example**
+
+```python
+from struct_ai.adapters.parsers.python_ast_adapter import PythonAstAdapter
+from struct_ai.core.exceptions.exceptions import InvalidCodeError
+
+adapter = PythonAstAdapter()
+try:
+    dependencies = adapter.parse_code("import os\nfrom sys import path\n")
+    for dep in dependencies:
+        print(dep.module_name, dep.line_number, dep.names)
+except InvalidCodeError as e:
+    print("Invalid code:", e.log)
+```
+
+---
+
 ## License
 
 See the `LICENSE` file in the project root.
