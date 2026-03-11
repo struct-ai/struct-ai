@@ -30,21 +30,18 @@ source .venv/bin/activate   # Linux / macOS
 
 ### 3. Install dependencies
 
-The project uses `pyproject.toml` for tooling (Black, isort, mypy). Runtime dependencies are not yet declared in a `[project]` section; install them manually:
+Install the package in editable mode with **runtime** dependencies:
 
 ```bash
 pip install --upgrade pip
-pip install pydantic loguru typer
-pip install -e .   # installs the struct_ai package in editable mode (once [project] is added)
+pip install -e .
 ```
 
-For **development tools** (tests, formatting, type-checking):
+For **development** (tests, formatting, type-checking), install the `dev` extra so that test dependencies (e.g. `pytest`, `loguru`) are available:
 
 ```bash
-pip install pytest black isort mypy
+pip install -e ".[dev]"
 ```
-
-*(Consider adding a `requirements.txt` or a `[project]` section in `pyproject.toml` with these dependencies for a one-command setup.)*
 
 ---
 
@@ -83,6 +80,31 @@ The command-line interface (Typer) will be documented here once the CLI entrypoi
 - `tests/`                     — Unit, integration, and e2e tests
 
 See `doc/intro.md` and `doc/structure.md` for product vision and detailed architecture.
+
+---
+
+## Code parser (import analysis)
+
+The project provides a **code parser** that extracts import dependencies from Python source without executing code.
+
+- **Interface** : `CodeParserPort` (`core/interfaces/outputs/code_parser_port.py`) — abstract method `parse_code(code: str) -> List[ImportDependency]`.
+- **Implementation** : `PythonAstAdapter` (`adapters/parsers/python_ast_adapter.py`) — uses the standard library `ast` module to walk the AST and collect `import` / `from ... import ...` statements. Each result is an `ImportDependency` with `module_name`, `line_number`, and `names` (imported symbols).
+- **Error handling** : Empty or whitespace-only code, or invalid Python syntax, raises `InvalidCodeError`. The exception has a `.log` property with `message` and `lines` for debugging.
+
+**Example**
+
+```python
+from struct_ai.adapters.parsers.python_ast_adapter import PythonAstAdapter
+from struct_ai.core.exceptions.exceptions import InvalidCodeError
+
+adapter = PythonAstAdapter()
+try:
+    dependencies = adapter.parse_code("import os\nfrom sys import path\n")
+    for dep in dependencies:
+        print(dep.module_name, dep.line_number, dep.names)
+except InvalidCodeError as e:
+    print("Invalid code:", e.log)
+```
 
 ---
 

@@ -13,11 +13,13 @@ struct-ia/
 │       │   ├── interfaces/       # Ports d'entrée/sortie (Abstract Base Classes)
 │       │   │   ├── inputs/       # Use Cases Interfaces
 │       │   │   └── outputs/      # Repositories / AI adapters Interfaces
+│       │   │       └── code_parser_port.py  # parse_code(code) -> List[ImportDependency]
 │       │   └── use_cases/        # Logique métier pure (Analyzer, FeedbackGenerator)
 │       │
 │       ├── adapters/             # L'INFRASTRUCTURE (Implémentations des interfaces core)
 │       │   ├── ai/               # Implémentations IA (OpenAI, HuggingFace, Ollama)
 │       │   ├── parsers/          # Analyse de code (AST, Tree-Sitter, Regex)
+│       │   │   └── python_ast_adapter.py  # Extrait les imports Python via ast (stdlib)
 │       │   ├── repository/       # Stockage de données (Fichiers, DB, Cache)
 │       │   └── vcs/              # Intégration VCS (GitLab, GitHub API)
 │       │
@@ -45,3 +47,12 @@ struct-ia/
 ├── Makefile                      # Raccourcis pour les commandes (install, test, run)
 ├── pyproject.toml                # Configuration du projet (Poetry, Pytest, Black, etc.)
 └── poetry.lock                   # Verrouillage des dépendances
+
+---
+
+## Code parser (analyse des imports)
+
+- **Port** : `CodeParserPort` (`core/interfaces/outputs/code_parser_port.py`) — méthode `parse_code(code: str) -> List[ImportDependency]`. Le domaine ne dépend que de ce port.
+- **Adapter** : `PythonAstAdapter` (`adapters/parsers/python_ast_adapter.py`) — implémentation qui utilise le module standard `ast` pour parcourir l’AST Python et extraire les `import` / `from ... import ...`.
+- **Comportement** : Code vide ou uniquement des espaces → lève `InvalidCodeError`. Syntaxe Python invalide → lève `InvalidCodeError` ; l’exception expose un attribut `log` avec `message` et `lines` pour le diagnostic.
+- **Dépendances** : uniquement la bibliothèque standard (`ast`), pas de dépendance externe pour le parsing.

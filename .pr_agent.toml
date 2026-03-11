@@ -1,0 +1,147 @@
+[github_app]
+pr_command = [
+    "/agentic_describe",
+    "/agentic_review"
+]
+
+[review_agent] 
+# "both" mode is too noisy, keep in "summary" mode in this repo
+comments_location_policy = "both" 
+
+# severity threshold rank for inline comments: 
+# 3=action_required, 
+# 2=remediation_recommended, 
+# 1=informational. 
+# Only findings with rank >= threshold will be published inline
+inline_comments_severity_threshold = 3
+
+
+issues_user_guidelines = '''
+description = "On branch push, locate related issue, update its link with the branch, and update/create the PR (draft or open) to reflect progress."
+instructions = """
+You are a code workflow assistant bot running the `branch-push-issue-pr-sync` workflow. Follow these steps strictly.
+
+### metadata
+- goal: When a developer pushes a branch, update the related issue with the branch link and keep the PR (draft or open) synchronized with progress and checklists.
+- primary actors: user (developer), agent (automation), reviewer (optional)
+- assumptions:
+  - The repository is hosted on {{GitHub|GitLab|Bitbucket}}.
+  - Issues and PRs follow a consistent naming or linking convention, or the commit messages reference the issue (e.g., "Fixes #123" or "PROJ-456").
+  - The user has valid CLI authentication set up (e.g., gh, glab, or API tokens in env vars).
+- human in the loop support:
+  - Some steps may require user input or confirmation.
+
+---
+"""
+'''
+compliance_user_guidelines = '''
+### global conventions
+- Do not execute these steps yourself.
+- Describe what the agent must do later.
+- Always apply edits with file tools, not by printing code (unless asked).
+- Confirm before destructive operations.
+- Stop and ask when context is missing.
+
+---
+
+### step 1 - Collect context and prerequisites
+- purpose: Determine repository, branch, hosting platform, and authentication method.
+- inputs:
+  - repo_path: {{path to git repository}}
+  - branch_name: {{current or pushed branch name}}
+  - platform: {{GitHub|GitLab|Bitbucket}}
+  - auth: {{gh CLI|glab CLI|API token env var}}
+- actions:
+  - Verify git repo presence and current branch using Terminal commands (e.g., `git rev-parse --is-inside-work-tree`, `git rev-parse --abbrev-ref HEAD`).
+  - If branch_name is missing, infer from current checkout.
+  - Detect remote URL and derive platform.
+- decision points:
+  - If auth is not configured, stop and ask for setup details.
+- outputs:
+  - A confirmed context block with repo, branch, platform, and auth method.
+
+### step 2 - Identify related issue(s)
+- purpose: Find the issue associated with the branch push.
+- inputs:
+  - conventions: {{branch naming convention like feature/123-login or issue key in commits}}
+  - patterns: {{regex list to extract issue IDs, e.g., #(?<num>\d+), (?<jira>[A-Z]{2,}-\d+)}}
+- actions:
+  - Inspect branch name and latest commits (`git log -n 20 --pretty=%s`).
+  - Extract candidate issue identifiers using provided patterns.
+  - If none found, stop and ask user to specify the issue ID or URL.
+- decision points:
+  - If multiple candidates found, present choices and stop and ask user to pick one.
+- outputs:
+  - A single canonical issue reference: {{issue_url}} and {{issue_id}}.
+
+### step 3 - Ensure PR exists (create or locate)
+- purpose: Create a draft PR if none exists; otherwise locate the existing PR for the branch.
+- inputs:
+  - repo: {{owner/repo or project path}}
+  - branch: {{branch_name}}
+  - base_branch: {{default main branch, e.g., main or develop}}
+  - pr_title_template: {{e.g., "[{{issue_id}}] {{summary}}"}}
+  - pr_body_template: {{template with checklist and links}}
+- actions:
+  - Query for an open PR from branch to base using platform CLI/API.
+  - If not found, create a draft PR with title/body templates and link to {{issue_url}}.
+  - If found, proceed to update it.
+- decision points:
+  - If base_branch unknown, attempt to detect default branch; otherwise stop and ask.
+- outputs:
+  - {{pr_url}} and {{pr_number}}.
+
+### step 4 - Update issue with branch link
+- purpose: Add or update a section in the issue that references the working branch and PR.
+- inputs:
+  - issue_url: {{issue_url}}
+  - branch_url: {{derived from remote URL and branch_name}}
+  - pr_url: {{pr_url}}
+  - comment_template: {{e.g., "Branch: {{branch_url}}\nPR: {{pr_url}}"}}
+- actions:
+  - For GitHub Issues: post a comment with the template; optionally update issue body if allowed.
+  - For Jira or other trackers: add a comment via API linking branch and PR.
+  - Avoid duplicate comments: check existing comments for same links; if present, update instead of posting a new one.
+- decision points:
+  - If API scope insufficient to edit, fall back to adding a new comment and note limitation.
+- outputs:
+  - Confirmation that the issue now has an up-to-date branch/PR link.
+
+### step 5 - Update PR with progression
+- purpose: Reflect current progress in the PR (draft state, checklist, status summary).
+- inputs:
+  - progress_heuristics: {{rules to infer progress, e.g., checklist in PR body, labels, commit keywords}}
+  - checklist_items: {{optional list of tasks}}
+  - ready_for_review_threshold: {{boolean or rules to switch from draft to ready}}
+- actions:
+  - Fetch current PR body and metadata.
+  - Update or insert a Progress section summarizing latest commits since last update.
+  - Sync checklist: check/uncheck items based on commit messages or user-provided status.
+  - If criteria met, toggle PR from draft to ready for review; otherwise ensure it remains draft.
+  - Ensure the PR description links back to the issue.
+- decision points:
+  - If unsure about auto-toggling draft state, stop and ask for confirmation.
+- outputs:
+  - Updated PR body and state reflecting progression.
+
+### step 6 - Post-push automation hook (optional)
+- purpose: Enable automatic execution on `git push` events locally or via CI.
+- inputs:
+  - mode: {{local git hook|CI pipeline}}
+- actions:
+  - Local: Propose a `post-push` or `pre-push` hook script that triggers the workflow with branch_name and last commit messages.
+  - CI: Outline a workflow file (e.g., GitHub Actions) that runs on `push` to non-default branches and calls APIs to update issue and PR.
+- decision points:
+  - Confirm with user before creating hooks or CI files.
+- outputs:
+  - A plan or generated scripts to integrate automation on push.
+
+### final step - Wrap up
+- purpose: Summarize changes and next steps.
+- actions:
+  - Provide links to the updated issue and PR.
+  - Note any manual confirmations or missing data collected during the run.
+  - Record the timestamp of last sync in PR body or as a comment.
+- outputs:
+  - A concise summary and audit trail of the synchronization.
+'''
