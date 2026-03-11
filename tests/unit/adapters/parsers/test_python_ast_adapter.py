@@ -21,13 +21,17 @@ def adapter() -> PythonAstAdapter:
 # --- Happy path ---
 
 
-def test_parse_code_returns_empty_list_when_no_imports(adapter: PythonAstAdapter) -> None:
+def test_parse_code_returns_empty_list_when_no_imports(
+    adapter: PythonAstAdapter,
+) -> None:
     """Code with no import statements returns an empty list."""
     result = adapter.parse_code("x = 1\n")
     assert result == []
 
 
-def test_parse_code_returns_empty_list_for_empty_string(adapter: PythonAstAdapter) -> None:
+def test_parse_code_returns_empty_list_for_empty_string(
+    adapter: PythonAstAdapter,
+) -> None:
     """Empty string raises SyntaxError and thus InvalidCodeError (empty is invalid)."""
     with pytest.raises(InvalidCodeError):
         adapter.parse_code("")
@@ -75,7 +79,9 @@ def test_parse_code_mixed_import_and_from_import(adapter: PythonAstAdapter) -> N
     assert line_numbers == {1, 2}
 
 
-def test_parse_code_line_numbers_reflect_source_lines(adapter: PythonAstAdapter) -> None:
+def test_parse_code_line_numbers_reflect_source_lines(
+    adapter: PythonAstAdapter,
+) -> None:
     """Imports on later lines have correct line_number."""
     code = "\n\nimport os\n"
     result = adapter.parse_code(code)
@@ -141,13 +147,17 @@ def f():
 # --- Invalid code (InvalidCodeError) ---
 
 
-def test_parse_code_invalid_syntax_raises_invalid_code_error(adapter: PythonAstAdapter) -> None:
+def test_parse_code_invalid_syntax_raises_invalid_code_error(
+    adapter: PythonAstAdapter,
+) -> None:
     """Invalid Python source raises InvalidCodeError, not SyntaxError."""
     with pytest.raises(InvalidCodeError):
         adapter.parse_code("def f(\n")
 
 
-def test_parse_code_invalid_syntax_exception_contains_message_in_log(adapter: PythonAstAdapter) -> None:
+def test_parse_code_invalid_syntax_exception_contains_message_in_log(
+    adapter: PythonAstAdapter,
+) -> None:
     """InvalidCodeError.log contains the original error message."""
     code = "x = (\n"
     with pytest.raises(InvalidCodeError) as exc_info:
@@ -156,7 +166,9 @@ def test_parse_code_invalid_syntax_exception_contains_message_in_log(adapter: Py
     assert exc_info.value.log["message"] is not None
 
 
-def test_parse_code_invalid_syntax_exception_contains_lines_in_log(adapter: PythonAstAdapter) -> None:
+def test_parse_code_invalid_syntax_exception_contains_lines_in_log(
+    adapter: PythonAstAdapter,
+) -> None:
     """InvalidCodeError.log contains the code lines."""
     code = "line one\nline two ( broken\n"
     with pytest.raises(InvalidCodeError) as exc_info:

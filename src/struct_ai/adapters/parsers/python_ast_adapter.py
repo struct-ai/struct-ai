@@ -5,7 +5,7 @@ from typing import List
 from struct_ai.core.exceptions.exceptions import InvalidCodeError
 
 
-class PythonAstAdapter(CodeParserPort): # type: ignore[misc]
+class PythonAstAdapter(CodeParserPort):  # type: ignore[misc]
     """
     Adapter for the Python AST parser.
     """
@@ -50,7 +50,9 @@ class PythonAstAdapter(CodeParserPort): # type: ignore[misc]
             )
         return result
 
-    def _import_from_node_to_dependencies(self, node: ast.ImportFrom) -> List[ImportDependency]:
+    def _import_from_node_to_dependencies(
+        self, node: ast.ImportFrom
+    ) -> List[ImportDependency]:
         """Convert a single ast.ImportFrom node into a list of ImportDependency."""
         module_str = "." * node.level + (node.module or "")
         result: List[ImportDependency] = []

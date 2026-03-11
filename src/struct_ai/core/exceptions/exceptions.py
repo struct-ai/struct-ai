@@ -1,11 +1,10 @@
-
-
 class InvalidCodeError(Exception):
     """
     Exception raised when the code is invalid.
     Stores the original error message and/or code lines in a log attribute,
     without exposing implementation details.
     """
+
     def __init__(
         self,
         message: str | None = None,
