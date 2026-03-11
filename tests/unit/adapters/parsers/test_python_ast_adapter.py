@@ -9,7 +9,6 @@ for invalid syntax.
 import pytest
 
 from struct_ai.adapters.parsers.python_ast_adapter import PythonAstAdapter
-from struct_ai.core.entities.imports import ImportDependency
 from struct_ai.core.exceptions.exceptions import InvalidCodeError
 
 
