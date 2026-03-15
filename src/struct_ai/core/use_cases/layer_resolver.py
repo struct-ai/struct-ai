@@ -2,15 +2,16 @@
 Pure resolution of file paths and import module names to Clean Architecture layers.
 No I/O; string manipulation only.
 """
+
 from enum import Enum
 from typing import Optional
 
 
 # Layer order: lower index = lower layer. A layer may only import same or lower.
 class Layer(int, Enum):
-    DOMAIN = 0          # core
+    DOMAIN = 0  # core
     INFRASTRUCTURE = 1  # adapters
-    ENTRYPOINTS = 2     # entrypoints
+    ENTRYPOINTS = 2  # entrypoints
 
 
 # Segment names in path that identify each layer (order matches Layer enum).
@@ -91,12 +92,17 @@ def resolved_import_path_to_layer(file_path: str, module_name: str) -> Optional[
     if module_name.startswith("."):
         current_package = _current_package_from_path(file_path)
         absolute_module = _resolve_relative_module(current_package, module_name)
-        if absolute_module is None or not absolute_module.startswith(_PROJECT_PACKAGE + "."):
+        if absolute_module is None or not absolute_module.startswith(
+            _PROJECT_PACKAGE + "."
+        ):
             return None
         path_like = _module_to_path(absolute_module)
         return path_to_layer(path_like)
     # Absolute import
-    if not module_name.startswith(_PROJECT_PACKAGE + ".") and module_name != _PROJECT_PACKAGE:
+    if (
+        not module_name.startswith(_PROJECT_PACKAGE + ".")
+        and module_name != _PROJECT_PACKAGE
+    ):
         return None
     path_like = _module_to_path(module_name)
     return path_to_layer(path_like)

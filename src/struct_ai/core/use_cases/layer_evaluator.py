@@ -2,6 +2,7 @@
 Pure evaluator: checks a file's imports against Clean Architecture layer rules.
 Returns RuleType.LAYER_VIOLATION if a lower layer imports a higher layer, else None.
 """
+
 from typing import List, Optional
 
 from struct_ai.core.entities.imports import ImportDependency
