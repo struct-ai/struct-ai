@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
-from rule_type import RuleType
-from suggestion import Suggestion
+from struct_ai.core.entities.rule_type import RuleType
+from struct_ai.core.entities.suggestion import Suggestion
 
 
 class AnalysisResult(BaseModel):
