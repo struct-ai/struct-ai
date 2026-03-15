@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field
+
 from struct_ai.core.entities.rule_type import RuleType
 from struct_ai.core.entities.suggestion import Suggestion
 
