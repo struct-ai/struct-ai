@@ -6,7 +6,6 @@ layer imports a higher layer, and None when the architecture is respected or
 imports are external.
 """
 
-import pytest
 
 from struct_ai.core.entities.imports import ImportDependency
 from struct_ai.core.entities.rule_type import RuleType
