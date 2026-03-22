@@ -3,10 +3,11 @@ name = "struct-ai"
 version = "0.1.0"
 dependencies = [
     "pydantic",
+    "openai",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest", "loguru", "ruff", "black", "mypy", "isort"]
+dev = ["pytest", "pytest-mock", "loguru", "ruff", "black", "mypy", "isort"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -26,3 +27,5 @@ multi_line_output = 3
 python_version = "3.12"
 strict = true
 ignore_missing_imports = true
+mypy_path = ["src"]
+explicit_package_bases = true
