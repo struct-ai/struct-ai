@@ -1,6 +1,8 @@
 from pathlib import Path
 
-from struct_ai.core.interfaces.inputs.source_file_reader_port import SourceFileReaderPort
+from struct_ai.core.interfaces.inputs.source_file_reader_port import (
+    SourceFileReaderPort,
+)
 
 
 class PathlibSourceFileReader(SourceFileReaderPort):

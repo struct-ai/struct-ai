@@ -10,7 +10,9 @@ from typing import Tuple
 
 from struct_ai.core.entities.analysis_result import AnalysisResult
 from struct_ai.core.interfaces.ai_mentor_port import AIMentorPort
-from struct_ai.core.interfaces.inputs.source_file_reader_port import SourceFileReaderPort
+from struct_ai.core.interfaces.inputs.source_file_reader_port import (
+    SourceFileReaderPort,
+)
 from struct_ai.core.interfaces.outputs.code_parser_port import CodeParserPort
 from struct_ai.core.use_cases.layer_evaluator import find_first_layer_violation
 

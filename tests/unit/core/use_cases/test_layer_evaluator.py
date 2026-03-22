@@ -216,7 +216,9 @@ def test_evaluate_returns_layer_violation_on_first_violating_import() -> None:
     )
 
 
-def test_find_first_layer_violation_picks_lowest_line_when_multiple_violations() -> None:
+def test_find_first_layer_violation_picks_lowest_line_when_multiple_violations() -> (
+    None
+):
     """
     List order must not matter: among several violating imports, the one with
     the smallest line_number is returned.

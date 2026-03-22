@@ -162,9 +162,7 @@ def test_execute_propagates_invalid_code_error() -> None:
 
 def test_execute_propagates_ai_mentor_response_error() -> None:
     """AIMentorResponseError from the AI mentor is not swallowed."""
-    use_case, _, _, mock_ai_mentor = _make_use_case(
-        parser_imports=[_VIOLATING_IMPORT]
-    )
+    use_case, _, _, mock_ai_mentor = _make_use_case(parser_imports=[_VIOLATING_IMPORT])
     mock_ai_mentor.suggest.side_effect = AIMentorResponseError(
         "bad response", raw_response="{}"
     )

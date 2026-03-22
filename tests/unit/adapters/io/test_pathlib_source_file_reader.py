@@ -10,7 +10,9 @@ from struct_ai.adapters.io.pathlib_source_file_reader import PathlibSourceFileRe
 
 def test_read_text_returns_utf8_contents() -> None:
     reader = PathlibSourceFileReader()
-    with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", delete=False) as handle:
+    with tempfile.NamedTemporaryFile(
+        mode="w", encoding="utf-8", delete=False
+    ) as handle:
         handle.write("alpha\nβ\n")
         path = handle.name
     try:
