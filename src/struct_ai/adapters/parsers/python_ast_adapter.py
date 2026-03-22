@@ -6,7 +6,7 @@ from struct_ai.core.exceptions.exceptions import InvalidCodeError
 from struct_ai.core.interfaces.outputs.code_parser_port import CodeParserPort
 
 
-class PythonAstAdapter(CodeParserPort):  # type: ignore[misc]
+class PythonAstAdapter(CodeParserPort):
     """
     Adapter for the Python AST parser.
     """
