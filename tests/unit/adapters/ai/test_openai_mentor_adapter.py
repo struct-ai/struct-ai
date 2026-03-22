@@ -111,7 +111,9 @@ def test_suggest_raises_when_openai_returns_no_choices() -> None:
     adapter: Any = OpenAIMentorAdapter.__new__(OpenAIMentorAdapter)
     adapter._client = mock_client
 
-    with pytest.raises(AIMentorResponseError, match="no completion choices") as exc_info:
+    with pytest.raises(
+        AIMentorResponseError, match="no completion choices"
+    ) as exc_info:
         adapter.suggest("x = 1", RuleType.LAYER_VIOLATION)
 
     assert exc_info.value.raw_response is None
