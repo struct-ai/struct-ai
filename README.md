@@ -69,6 +69,10 @@ mypy src/                  # static type-checking (config in pyproject.toml)
 
 The command-line interface (Typer) will be documented here once the CLI entrypoint is implemented.
 
+### Testing OpenAI with a real API key
+
+Unit tests mock OpenAI and do not need a key. To call the live API (manual checks, integration experiments), see **[doc/testing-openai.md](doc/testing-openai.md)** — environment variable `OPENAI_API_KEY`, shell loading of `.env.local`, and a minimal Python example.
+
 ---
 
 ## Project structure

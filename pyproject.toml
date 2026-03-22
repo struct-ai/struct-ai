@@ -7,7 +7,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest", "pytest-mock", "loguru", "ruff", "black", "mypy", "isort"]
+dev = ["pytest", "loguru", "ruff", "black", "mypy", "isort"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -106,7 +106,20 @@ class OpenAIMentorAdapter(AIMentorPort):
                 {"role": "user", "content": user_message},
             ],
         )
-        content = response.choices[0].message.content
+        choices = getattr(response, "choices", None)
+        if not choices:
+            raise AIMentorResponseError(
+                "OpenAI returned no completion choices.",
+                raw_response=None,
+            )
+        first_choice = choices[0]
+        message = getattr(first_choice, "message", None)
+        if message is None:
+            raise AIMentorResponseError(
+                "OpenAI completion has no message.",
+                raw_response=None,
+            )
+        content = getattr(message, "content", None)
         if content is None:
             raise AIMentorResponseError(
                 "OpenAI returned an empty response.",

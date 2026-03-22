@@ -24,7 +24,9 @@ class AIMentorPort(ABC):
             A frozen Suggestion entity with explanation and refactored code.
 
         Raises:
-            AIMentorResponseError: When the LLM response cannot be mapped to
-                a valid Suggestion (missing fields, wrong types, etc.).
+            AIMentorResponseError: When the provider response is malformed or
+                incomplete (e.g. empty choices, missing message or content), or
+                when the payload cannot be mapped to a valid Suggestion (missing
+                fields, wrong types, etc.).
         """
         raise NotImplementedError

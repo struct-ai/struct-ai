@@ -2,10 +2,12 @@
 Unit tests for OpenAIMentorAdapter.
 
 Strategy: mock the OpenAI client entirely — no real HTTP calls.
+Uses ``unittest.mock`` (stdlib), not ``pytest-mock``.
 We test:
   - Happy path: well-formed JSON → valid Suggestion returned.
   - Missing OPENAI_API_KEY → EnvironmentError raised.
   - OpenAI returns empty content → AIMentorResponseError raised.
+  - OpenAI returns no choices → AIMentorResponseError raised.
   - OpenAI returns invalid JSON → AIMentorResponseError raised.
   - OpenAI returns JSON with missing Suggestion fields → AIMentorResponseError raised.
   - User message embeds the code snippet and rule name correctly.
@@ -95,6 +97,24 @@ def test_suggest_raises_when_openai_returns_empty_content() -> None:
 
     with pytest.raises(AIMentorResponseError, match="empty response"):
         adapter.suggest("x = 1", RuleType.LAYER_VIOLATION)
+
+
+def test_suggest_raises_when_openai_returns_no_choices() -> None:
+    """An empty choices list raises AIMentorResponseError with raw_response None."""
+    mock_completion = MagicMock()
+    mock_completion.choices = []
+    mock_client: Any = MagicMock()
+    mock_client.chat.completions.create.return_value = mock_completion
+
+    from struct_ai.adapters.ai.openai_mentor_adapter import OpenAIMentorAdapter
+
+    adapter: Any = OpenAIMentorAdapter.__new__(OpenAIMentorAdapter)
+    adapter._client = mock_client
+
+    with pytest.raises(AIMentorResponseError, match="no completion choices") as exc_info:
+        adapter.suggest("x = 1", RuleType.LAYER_VIOLATION)
+
+    assert exc_info.value.raw_response is None
 
 
 def test_suggest_raises_when_response_is_not_json() -> None:
