@@ -125,6 +125,11 @@ class OpenAIMentorAdapter(AIMentorPort):
                 "OpenAI returned an empty response.",
                 raw_response=None,
             )
+        if not isinstance(content, str):
+            raise AIMentorResponseError(
+                "OpenAI completion content is not a string.",
+                raw_response=None,
+            )
         return content
 
     def _parse_response(self, raw_response: str) -> Suggestion:
