@@ -8,7 +8,10 @@ imports are external.
 
 from struct_ai.core.entities.imports import ImportDependency
 from struct_ai.core.entities.rule_type import RuleType
-from struct_ai.core.use_cases.layer_evaluator import evaluate_layer_rules
+from struct_ai.core.use_cases.layer_evaluator import (
+    evaluate_layer_rules,
+    find_first_layer_violation,
+)
 
 
 def _imp(
@@ -197,11 +200,11 @@ def test_evaluate_returns_none_when_file_path_outside_project_layers() -> None:
     assert evaluate_layer_rules("some/other/package/foo.py", imports) is None
 
 
-# --- First violation wins ---
+# --- First violation wins (lowest line_number in source order) ---
 
 
 def test_evaluate_returns_layer_violation_on_first_violating_import() -> None:
-    """When multiple imports violate, first one triggers LAYER_VIOLATION."""
+    """When multiple imports violate, the earliest line in the file wins."""
     imports = [
         _imp("struct_ai.core.entities.rule_type", line=1),  # ok
         _imp("struct_ai.adapters.parsers.python_ast_adapter", line=2),  # violation
@@ -211,3 +214,22 @@ def test_evaluate_returns_layer_violation_on_first_violating_import() -> None:
         evaluate_layer_rules("struct_ai/core/entities/foo.py", imports)
         == RuleType.LAYER_VIOLATION
     )
+
+
+def test_find_first_layer_violation_picks_lowest_line_when_multiple_violations() -> (
+    None
+):
+    """
+    List order must not matter: among several violating imports, the one with
+    the smallest line_number is returned.
+    """
+    imports = [
+        _imp("struct_ai.entrypoints.cli.main", line=9),
+        _imp("struct_ai.adapters.parsers.python_ast_adapter", line=4),
+    ]
+    result = find_first_layer_violation("struct_ai/core/entities/foo.py", imports)
+    assert result is not None
+    rule_type, offending = result
+    assert rule_type == RuleType.LAYER_VIOLATION
+    assert offending.line_number == 4
+    assert "adapters" in offending.module_name
