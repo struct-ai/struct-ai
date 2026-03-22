@@ -22,23 +22,48 @@ _PROJECT_PACKAGE = "struct_ai"
 
 
 def _normalize_path(file_path: str) -> str:
-    """Normalize path: forward slashes, strip leading 'src/'."""
+    """
+    Normalize path for layer and package resolution.
+
+    - Converts backslashes to forward slashes.
+    - Trims to project source when possible: after the first ``/src/`` segment
+      (e.g. ``/repo/src/struct_ai/core/...`` → ``struct_ai/core/...``).
+    - Strips a leading ``src/`` when present (repo-relative layout).
+    - Keeps only the path from the first ``struct_ai/`` onward so absolute
+      filesystem paths (e.g. ``/home/repo/struct_ai/core/...``) resolve like
+      repo-relative paths.
+    """
     normalized = file_path.replace("\\", "/").strip()
-    if normalized.startswith("src/"):
+    if "/src/" in normalized:
+        normalized = normalized.split("/src/", 1)[1]
+    elif normalized.startswith("src/"):
         normalized = normalized[4:]
-    return normalized
+    marker = f"{_PROJECT_PACKAGE}/"
+    if marker in normalized:
+        normalized = normalized[normalized.find(marker) :]
+    return normalized.lstrip("/")
 
 
 def path_to_layer(file_path: str) -> Optional[Layer]:
     """
-    Map a file path to its layer. Returns None if path is outside project layers.
+    Map a file path to its layer.
+
+    Only the segment immediately after ``struct_ai`` defines the layer
+    (``struct_ai/core/...``, ``struct_ai/adapters/...``, ``struct_ai/entrypoints/...``).
+    This avoids misclassifying paths where ``core``, ``adapters``, or ``entrypoints``
+    appear in unrelated parent directories.
     """
     normalized = _normalize_path(file_path)
-    parts = normalized.split("/")
-    for segment in parts:
-        if segment in _LAYER_SEGMENTS:
-            idx = _LAYER_SEGMENTS.index(segment)
-            return Layer(idx)
+    parts = [segment for segment in normalized.split("/") if segment]
+    try:
+        package_index = parts.index(_PROJECT_PACKAGE)
+    except ValueError:
+        return None
+    if package_index + 1 >= len(parts):
+        return None
+    layer_segment = parts[package_index + 1]
+    if layer_segment in _LAYER_SEGMENTS:
+        return Layer(_LAYER_SEGMENTS.index(layer_segment))
     return None
 
 
@@ -48,9 +73,13 @@ def _module_to_path(module_name: str) -> str:
 
 
 def _current_package_from_path(file_path: str) -> str:
-    """Derive current package from file path: struct_ai/core/entities/foo.py -> struct_ai.core.entities.foo."""
+    """
+    Derive current package from file path.
+
+    Uses the same normalization as path_to_layer so absolute paths and
+    ``.../src/struct_ai/...`` layouts yield ``struct_ai.core.entities.foo``.
+    """
     normalized = _normalize_path(file_path)
-    # Remove .py and split
     if normalized.endswith(".py"):
         normalized = normalized[:-3]
     return normalized.replace("/", ".")
@@ -92,8 +121,11 @@ def resolved_import_path_to_layer(file_path: str, module_name: str) -> Optional[
     if module_name.startswith("."):
         current_package = _current_package_from_path(file_path)
         absolute_module = _resolve_relative_module(current_package, module_name)
-        if absolute_module is None or not absolute_module.startswith(
-            _PROJECT_PACKAGE + "."
+        if absolute_module is None:
+            return None
+        if (
+            absolute_module != _PROJECT_PACKAGE
+            and not absolute_module.startswith(_PROJECT_PACKAGE + ".")
         ):
             return None
         path_like = _module_to_path(absolute_module)

@@ -158,6 +158,36 @@ def test_evaluate_with_backslashes_normalizes_path() -> None:
     )
 
 
+# --- Absolute filesystem paths (CI / local clones) ---
+
+
+def test_evaluate_absolute_path_with_src_segment_relative_import_resolves() -> None:
+    """Paths like /repo/src/struct_ai/... must resolve relative imports (not skip)."""
+    imports = [_imp("..interfaces.outputs.code_parser_port")]
+    absolute_file = (
+        "/home/runner/work/struct-ai/struct-ai/src/struct_ai/core/entities/bar.py"
+    )
+    assert evaluate_layer_rules(absolute_file, imports) is None
+
+
+def test_evaluate_absolute_path_prefix_before_struct_ai_relative_import_resolves() -> None:
+    """Paths with leading dirs before struct_ai/ still derive the correct package."""
+    imports = [_imp("..interfaces.outputs.code_parser_port")]
+    absolute_file = "/var/projects/my-app/struct_ai/core/entities/bar.py"
+    assert evaluate_layer_rules(absolute_file, imports) is None
+
+
+def test_evaluate_absolute_path_with_src_segment_detects_layer_violation() -> None:
+    """Absolute path normalization does not skip adapter imports from core."""
+    imports = [_imp("struct_ai.adapters.parsers.python_ast_adapter")]
+    absolute_file = (
+        "/home/runner/work/struct-ai/struct-ai/src/struct_ai/core/entities/foo.py"
+    )
+    assert (
+        evaluate_layer_rules(absolute_file, imports) == RuleType.LAYER_VIOLATION
+    )
+
+
 # --- File outside project layers ---
 
 
