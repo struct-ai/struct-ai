@@ -1,12 +1,11 @@
 """
 Unit tests for ReviewCodeUseCase.
 
-All I/O is eliminated: the filesystem is mocked with unittest.mock.patch and
-both ports (CodeParserPort, AIMentorPort) are replaced by MagicMock instances.
-No real file reads and no network calls are made.
+All I/O is eliminated: SourceFileReaderPort, CodeParserPort, and AIMentorPort
+are replaced by MagicMock instances. No real file reads and no network calls.
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -50,11 +49,14 @@ _SUGGESTION = Suggestion(
 def _make_use_case(
     parser_imports: list[ImportDependency] | None = None,
     suggestion: Suggestion | None = None,
-) -> tuple[ReviewCodeUseCase, MagicMock, MagicMock]:
+) -> tuple[ReviewCodeUseCase, MagicMock, MagicMock, MagicMock]:
     """
-    Build a ReviewCodeUseCase with mocked parser and AI mentor.
-    Returns (use_case, mock_parser, mock_ai_mentor).
+    Build a ReviewCodeUseCase with mocked source reader, parser, and AI mentor.
+    Returns (use_case, mock_source_reader, mock_parser, mock_ai_mentor).
     """
+    mock_source_reader = MagicMock()
+    mock_source_reader.read_text.return_value = _SOURCE_CODE
+
     mock_parser = MagicMock()
     mock_parser.parse_code.return_value = parser_imports or []
 
@@ -62,7 +64,12 @@ def _make_use_case(
     if suggestion is not None:
         mock_ai_mentor.suggest.return_value = suggestion
 
-    return ReviewCodeUseCase(mock_parser, mock_ai_mentor), mock_parser, mock_ai_mentor
+    return (
+        ReviewCodeUseCase(mock_source_reader, mock_parser, mock_ai_mentor),
+        mock_source_reader,
+        mock_parser,
+        mock_ai_mentor,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -72,19 +79,15 @@ def _make_use_case(
 
 def test_execute_returns_empty_tuple_when_no_violation() -> None:
     """No layer violation → execute() returns ()."""
-    use_case, mock_parser, mock_ai_mentor = _make_use_case(
+    use_case, _, mock_parser, mock_ai_mentor = _make_use_case(
         parser_imports=[_CLEAN_IMPORT]
     )
-    with (
-        patch("builtins.open"),
-        patch("struct_ai.core.use_cases.review_code_use_case.Path") as mock_path,
-    ):
-        mock_path.return_value.read_text.return_value = _SOURCE_CODE
 
-        result = use_case.execute(_FILE_PATH)
+    result = use_case.execute(_FILE_PATH)
 
     assert result == ()
     mock_ai_mentor.suggest.assert_not_called()
+    mock_parser.parse_code.assert_called_once()
 
 
 # ---------------------------------------------------------------------------
@@ -94,14 +97,12 @@ def test_execute_returns_empty_tuple_when_no_violation() -> None:
 
 def test_execute_returns_analysis_result_when_violation_detected() -> None:
     """Layer violation → AI is called → a single AnalysisResult is returned."""
-    use_case, mock_parser, mock_ai_mentor = _make_use_case(
+    use_case, _, _, _ = _make_use_case(
         parser_imports=[_VIOLATING_IMPORT],
         suggestion=_SUGGESTION,
     )
-    with patch("struct_ai.core.use_cases.review_code_use_case.Path") as mock_path:
-        mock_path.return_value.read_text.return_value = _SOURCE_CODE
 
-        result = use_case.execute(_FILE_PATH)
+    result = use_case.execute(_FILE_PATH)
 
     assert len(result) == 1
     analysis = result[0]
@@ -119,11 +120,9 @@ def test_execute_returns_analysis_result_when_violation_detected() -> None:
 
 def test_execute_result_is_immutable_tuple() -> None:
     """Return value must be a tuple (frozen / immutable by construction)."""
-    use_case, _, _ = _make_use_case(parser_imports=[_CLEAN_IMPORT])
-    with patch("struct_ai.core.use_cases.review_code_use_case.Path") as mock_path:
-        mock_path.return_value.read_text.return_value = _SOURCE_CODE
+    use_case, _, _, _ = _make_use_case(parser_imports=[_CLEAN_IMPORT])
 
-        result = use_case.execute(_FILE_PATH)
+    result = use_case.execute(_FILE_PATH)
 
     assert isinstance(result, tuple)
 
@@ -134,13 +133,12 @@ def test_execute_result_is_immutable_tuple() -> None:
 
 
 def test_execute_raises_file_not_found_when_path_missing() -> None:
-    """FileNotFoundError from Path.read_text() is not swallowed."""
-    use_case, _, _ = _make_use_case()
-    with patch("struct_ai.core.use_cases.review_code_use_case.Path") as mock_path:
-        mock_path.return_value.read_text.side_effect = FileNotFoundError("no such file")
+    """FileNotFoundError from SourceFileReaderPort is not swallowed."""
+    use_case, mock_source_reader, _, _ = _make_use_case()
+    mock_source_reader.read_text.side_effect = FileNotFoundError("no such file")
 
-        with pytest.raises(FileNotFoundError):
-            use_case.execute(_FILE_PATH)
+    with pytest.raises(FileNotFoundError):
+        use_case.execute(_FILE_PATH)
 
 
 # ---------------------------------------------------------------------------
@@ -150,14 +148,11 @@ def test_execute_raises_file_not_found_when_path_missing() -> None:
 
 def test_execute_propagates_invalid_code_error() -> None:
     """InvalidCodeError from the parser is not swallowed."""
-    use_case, mock_parser, _ = _make_use_case()
+    use_case, _, mock_parser, _ = _make_use_case()
     mock_parser.parse_code.side_effect = InvalidCodeError("syntax error")
 
-    with patch("struct_ai.core.use_cases.review_code_use_case.Path") as mock_path:
-        mock_path.return_value.read_text.return_value = _SOURCE_CODE
-
-        with pytest.raises(InvalidCodeError):
-            use_case.execute(_FILE_PATH)
+    with pytest.raises(InvalidCodeError):
+        use_case.execute(_FILE_PATH)
 
 
 # ---------------------------------------------------------------------------
@@ -167,16 +162,15 @@ def test_execute_propagates_invalid_code_error() -> None:
 
 def test_execute_propagates_ai_mentor_response_error() -> None:
     """AIMentorResponseError from the AI mentor is not swallowed."""
-    use_case, _, mock_ai_mentor = _make_use_case(parser_imports=[_VIOLATING_IMPORT])
+    use_case, _, _, mock_ai_mentor = _make_use_case(
+        parser_imports=[_VIOLATING_IMPORT]
+    )
     mock_ai_mentor.suggest.side_effect = AIMentorResponseError(
         "bad response", raw_response="{}"
     )
 
-    with patch("struct_ai.core.use_cases.review_code_use_case.Path") as mock_path:
-        mock_path.return_value.read_text.return_value = _SOURCE_CODE
-
-        with pytest.raises(AIMentorResponseError):
-            use_case.execute(_FILE_PATH)
+    with pytest.raises(AIMentorResponseError):
+        use_case.execute(_FILE_PATH)
 
 
 # ---------------------------------------------------------------------------
@@ -185,12 +179,10 @@ def test_execute_propagates_ai_mentor_response_error() -> None:
 
 
 def test_execute_calls_parser_with_correct_source_code() -> None:
-    """The parser must receive the exact source code read from the file."""
-    use_case, mock_parser, _ = _make_use_case(parser_imports=[_CLEAN_IMPORT])
-    with patch("struct_ai.core.use_cases.review_code_use_case.Path") as mock_path:
-        mock_path.return_value.read_text.return_value = _SOURCE_CODE
+    """The parser must receive the exact source code from SourceFileReaderPort."""
+    use_case, _, mock_parser, _ = _make_use_case(parser_imports=[_CLEAN_IMPORT])
 
-        use_case.execute(_FILE_PATH)
+    use_case.execute(_FILE_PATH)
 
     mock_parser.parse_code.assert_called_once_with(_SOURCE_CODE)
 
@@ -202,10 +194,22 @@ def test_execute_calls_parser_with_correct_source_code() -> None:
 
 def test_execute_does_not_call_ai_when_no_violation() -> None:
     """AI mentor must never be invoked when no rule is violated."""
-    use_case, _, mock_ai_mentor = _make_use_case(parser_imports=[_CLEAN_IMPORT])
-    with patch("struct_ai.core.use_cases.review_code_use_case.Path") as mock_path:
-        mock_path.return_value.read_text.return_value = _SOURCE_CODE
+    use_case, _, _, mock_ai_mentor = _make_use_case(parser_imports=[_CLEAN_IMPORT])
 
-        use_case.execute(_FILE_PATH)
+    use_case.execute(_FILE_PATH)
 
     mock_ai_mentor.suggest.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# Scenario 9: source reader receives the requested path
+# ---------------------------------------------------------------------------
+
+
+def test_execute_calls_source_reader_with_file_path() -> None:
+    """SourceFileReaderPort.read_text must be invoked with execute()'s path."""
+    use_case, mock_source_reader, _, _ = _make_use_case(parser_imports=[_CLEAN_IMPORT])
+
+    use_case.execute(_FILE_PATH)
+
+    mock_source_reader.read_text.assert_called_once_with(_FILE_PATH)

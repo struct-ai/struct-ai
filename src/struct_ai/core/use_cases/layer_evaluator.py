@@ -36,13 +36,25 @@ def find_first_layer_violation(
     Return the rule type and the first offending import when a layer violation
     is detected, or None when the architecture is respected.
 
+    Imports are considered in ascending source order (line_number, then module
+    and names) so the result does not depend on parser / caller list order.
+
     This is the canonical inner evaluator; evaluate_layer_rules delegates to it.
     """
     current_layer = path_to_layer(file_path)
     if current_layer is None:
         return None
 
-    for dependency in imports:
+    ordered_imports = sorted(
+        imports,
+        key=lambda dependency: (
+            dependency.line_number,
+            dependency.module_name,
+            tuple(dependency.names),
+        ),
+    )
+
+    for dependency in ordered_imports:
         target_layer = resolved_import_path_to_layer(file_path, dependency.module_name)
         if target_layer is None:
             continue

@@ -35,7 +35,14 @@ class PythonAstAdapter(CodeParserPort):
                 imports.extend(self._import_node_to_dependencies(node))
             elif isinstance(node, ast.ImportFrom):
                 imports.extend(self._import_from_node_to_dependencies(node))
-        return imports
+        return sorted(
+            imports,
+            key=lambda dependency: (
+                dependency.line_number,
+                dependency.module_name,
+                tuple(dependency.names),
+            ),
+        )
 
     def _import_node_to_dependencies(self, node: ast.Import) -> List[ImportDependency]:
         """Convert a single ast.Import node into a list of ImportDependency."""
