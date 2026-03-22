@@ -123,9 +123,8 @@ def resolved_import_path_to_layer(file_path: str, module_name: str) -> Optional[
         absolute_module = _resolve_relative_module(current_package, module_name)
         if absolute_module is None:
             return None
-        if (
-            absolute_module != _PROJECT_PACKAGE
-            and not absolute_module.startswith(_PROJECT_PACKAGE + ".")
+        if absolute_module != _PROJECT_PACKAGE and not absolute_module.startswith(
+            _PROJECT_PACKAGE + "."
         ):
             return None
         path_like = _module_to_path(absolute_module)

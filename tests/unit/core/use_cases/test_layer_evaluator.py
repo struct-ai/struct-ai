@@ -170,7 +170,9 @@ def test_evaluate_absolute_path_with_src_segment_relative_import_resolves() -> N
     assert evaluate_layer_rules(absolute_file, imports) is None
 
 
-def test_evaluate_absolute_path_prefix_before_struct_ai_relative_import_resolves() -> None:
+def test_evaluate_absolute_path_prefix_before_struct_ai_relative_import_resolves() -> (
+    None
+):
     """Paths with leading dirs before struct_ai/ still derive the correct package."""
     imports = [_imp("..interfaces.outputs.code_parser_port")]
     absolute_file = "/var/projects/my-app/struct_ai/core/entities/bar.py"
@@ -183,9 +185,7 @@ def test_evaluate_absolute_path_with_src_segment_detects_layer_violation() -> No
     absolute_file = (
         "/home/runner/work/struct-ai/struct-ai/src/struct_ai/core/entities/foo.py"
     )
-    assert (
-        evaluate_layer_rules(absolute_file, imports) == RuleType.LAYER_VIOLATION
-    )
+    assert evaluate_layer_rules(absolute_file, imports) == RuleType.LAYER_VIOLATION
 
 
 # --- File outside project layers ---
