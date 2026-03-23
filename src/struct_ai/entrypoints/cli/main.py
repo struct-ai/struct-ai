@@ -1,0 +1,205 @@
+"""
+CLI entrypoint for struct-ia.
+
+Exposes the `analyze` command which recursively traverses a directory,
+runs ReviewCodeUseCase on every .py file, and renders educational
+feedback via Rich panels when a Clean Architecture violation is detected.
+
+Usage:
+    struct-ia analyze <path_to_directory>
+"""
+
+import os
+from pathlib import Path
+from typing import Tuple
+
+import typer
+from loguru import logger
+from rich.console import Console
+from rich.panel import Panel
+from rich.syntax import Syntax
+from rich.text import Text
+
+from struct_ai.adapters.ai.openai_mentor_adapter import OpenAIMentorAdapter
+from struct_ai.adapters.io.pathlib_source_file_reader import PathlibSourceFileReader
+from struct_ai.adapters.parsers.python_ast_adapter import PythonAstAdapter
+from struct_ai.core.entities.analysis_result import AnalysisResult
+from struct_ai.core.exceptions.exceptions import AIMentorResponseError, InvalidCodeError
+from struct_ai.core.use_cases.review_code_use_case import ReviewCodeUseCase
+
+app = typer.Typer(
+    name="struct-ia",
+    help="Analyse les violations d'architecture Clean dans votre code Python.",
+    no_args_is_help=True,
+)
+
+_console = Console()
+
+
+@app.command()
+def analyze(
+    directory: Path = typer.Argument(
+        ...,
+        help="Chemin du répertoire à analyser récursivement.",
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+        resolve_path=True,
+    ),
+) -> None:
+    """
+    Analyse récursivement tous les fichiers .py dans le répertoire cible.
+
+    Détecte les violations d'architecture Clean et fournit des suggestions
+    pédagogiques générées par l'IA pour chaque fichier concerné.
+    """
+    if not os.environ.get("OPENAI_API_KEY"):
+        _console.print(
+            "[bold red]Erreur :[/bold red] La variable d'environnement "
+            "[bold]OPENAI_API_KEY[/bold] n'est pas définie.\n"
+            "Définissez-la avec : [italic]export OPENAI_API_KEY=sk-...[/italic]"
+        )
+        raise typer.Exit(code=1)
+
+    python_files = sorted(directory.rglob("*.py"))
+
+    if not python_files:
+        _console.print(
+            f"[yellow]Aucun fichier .py trouvé dans[/yellow] [bold]{directory}[/bold]"
+        )
+        raise typer.Exit(code=0)
+
+    _console.print(
+        f"\n[bold cyan]struct-ia[/bold cyan] — Analyse de "
+        f"[bold]{len(python_files)}[/bold] fichier(s) dans [bold]{directory}[/bold]\n"
+    )
+
+    use_case = _build_use_case()
+    violations_found = _run_analysis(use_case, python_files, directory)
+    _display_summary(len(python_files), violations_found)
+
+
+# ---------------------------------------------------------------------------
+# Private helpers
+# ---------------------------------------------------------------------------
+
+
+def _build_use_case() -> ReviewCodeUseCase:
+    """Instantiate concrete adapters and wire them into ReviewCodeUseCase."""
+    source_reader = PathlibSourceFileReader()
+    parser = PythonAstAdapter()
+    ai_mentor = OpenAIMentorAdapter()
+    return ReviewCodeUseCase(source_reader, parser, ai_mentor)
+
+
+def _run_analysis(
+    use_case: ReviewCodeUseCase,
+    python_files: list[Path],
+    base_directory: Path,
+) -> int:
+    """
+    Iterate over python_files, execute the use case, and render results.
+
+    Returns the total number of violations found across all files.
+    Skips files that raise InvalidCodeError or AIMentorResponseError,
+    logging a warning or error respectively.
+    """
+    violations_found = 0
+
+    for file_path in python_files:
+        relative_path = file_path.relative_to(base_directory)
+        results: Tuple[AnalysisResult, ...]
+
+        try:
+            results = use_case.execute(str(file_path))
+        except InvalidCodeError as error:
+            logger.warning(
+                "Fichier ignoré (code invalide) : {path} — {log}",
+                path=file_path,
+                log=error.log,
+            )
+            continue
+        except AIMentorResponseError as error:
+            logger.error(
+                "Réponse IA malformée pour {path} : {error}",
+                path=file_path,
+                error=error,
+            )
+            continue
+        except Exception as error:  # noqa: BLE001
+            logger.error(
+                "Erreur inattendue pour {path} : {error}",
+                path=file_path,
+                error=error,
+            )
+            continue
+
+        if not results:
+            _console.print(f"  [green]✓[/green] {relative_path}")
+            continue
+
+        for result in results:
+            violations_found += 1
+            _display_violation(result, relative_path)
+
+    return violations_found
+
+
+def _display_violation(result: AnalysisResult, relative_path: Path) -> None:
+    """Render a single AnalysisResult as Rich panels in the terminal."""
+    suggestion = result.mentor_feedback
+
+    header = Text()
+    header.append("  ✗ ", style="bold red")
+    header.append(str(relative_path), style="bold white")
+    header.append(f"  ligne {result.line_number}", style="dim")
+    header.append(f"  [{result.rule_violation.value}]", style="bold yellow")
+    _console.print(header)
+
+    _console.print(
+        Panel(
+            suggestion.educational_explanation,
+            title=f"[bold yellow]{suggestion.concept_name}[/bold yellow]",
+            border_style="yellow",
+            expand=False,
+        )
+    )
+    _console.print(
+        Panel(
+            Syntax(
+                suggestion.code_before, "python", theme="monokai", line_numbers=True
+            ),
+            title="[red]Avant[/red]",
+            border_style="red",
+            expand=False,
+        )
+    )
+    _console.print(
+        Panel(
+            Syntax(suggestion.code_after, "python", theme="monokai", line_numbers=True),
+            title="[green]Après[/green]",
+            border_style="green",
+            expand=False,
+        )
+    )
+
+    if suggestion.documentation_links:
+        links = "\n".join(f"  • {link}" for link in suggestion.documentation_links)
+        _console.print(f"[dim]Ressources :[/dim]\n{links}")
+
+    _console.print()
+
+
+def _display_summary(total_files: int, violations_found: int) -> None:
+    """Print a final summary line and exit with code 1 if violations were found."""
+    if violations_found == 0:
+        _console.print(
+            f"\n[bold green]✓ Aucune violation détectée[/bold green] "
+            f"({total_files} fichier(s) analysé(s))"
+        )
+    else:
+        _console.print(
+            f"\n[bold red]✗ {violations_found} violation(s) détectée(s)[/bold red] "
+            f"sur {total_files} fichier(s) analysé(s)"
+        )
+        raise typer.Exit(code=1)
