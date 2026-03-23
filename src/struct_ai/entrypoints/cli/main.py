@@ -52,10 +52,10 @@ def analyze(
         resolve_path=True,
     ),
 ) -> None:
-    """Analyse récursivement tous les fichiers .py dans le répertoire cible.
+    """Recursively analyze all .py files in the target directory.
 
-    Détecte les violations d'architecture Clean et fournit des suggestions
-    pédagogiques générées par l'IA pour chaque fichier concerné.
+    Detects Clean Architecture violations and provides pedagogical
+    suggestions powered by AI for each affected file.
     """
     if not os.environ.get("OPENAI_API_KEY"):
         logger.error("Environment variable OPENAI_API_KEY is not set.")

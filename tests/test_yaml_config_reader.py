@@ -76,4 +76,4 @@ def describe_YamlConfigReader() -> None:
             (tmp_path / ".struct-ia.yaml").write_text(_VALID_YAML, encoding="utf-8")
             config = YamlConfigReader().read(tmp_path)
             with pytest.raises(Exception):
-                config.project_package = "other"  # noqa: assignment — Pydantic raises at runtime
+                config.project_package = "other"  # Pydantic frozen model raises at runtime

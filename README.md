@@ -30,17 +30,20 @@ source .venv/bin/activate   # Linux / macOS
 
 ### 3. Install dependencies
 
-Install the package in editable mode with **runtime** dependencies:
+Runtime packages are listed in `requirements.txt`. Install them, then install this project in editable mode:
 
 ```bash
 pip install --upgrade pip
+pip install -r requirements.txt
 pip install -e .
 ```
 
-For **development** (tests, formatting, type-checking), install the `dev` extra so that test dependencies (e.g. `pytest`, `loguru`) are available:
+For **development** (tests, linting, formatting, type-checking), use `requirements-dev.txt` — it includes `requirements.txt` plus tools such as `pytest`, `ruff`, `black`, and `mypy`:
 
 ```bash
-pip install -e ".[dev]"
+pip install --upgrade pip
+pip install -r requirements-dev.txt
+pip install -e .
 ```
 
 ---
