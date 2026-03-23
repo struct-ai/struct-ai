@@ -11,8 +11,8 @@ without a subcommand prefix (e.g. [str(directory)], not ["analyze", str(director
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from click.testing import Result
 import pytest
+from click.testing import Result
 from typer.testing import CliRunner
 
 from struct_ai.core.entities.analysis_result import AnalysisResult
