@@ -1,0 +1,6 @@
+pydantic
+openai
+typer
+rich
+loguru
+pyyaml

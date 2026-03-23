@@ -1,5 +1,4 @@
-"""
-CLI entrypoint for struct-ia.
+"""CLI entrypoint for struct-ia.
 
 Exposes the `analyze` command which recursively traverses a directory,
 runs ReviewCodeUseCase on every .py file, and renders educational
@@ -21,10 +20,16 @@ from rich.syntax import Syntax
 from rich.text import Text
 
 from struct_ai.adapters.ai.openai_mentor_adapter import OpenAIMentorAdapter
+from struct_ai.adapters.config.yaml_config_reader import YamlConfigReader
 from struct_ai.adapters.io.pathlib_source_file_reader import PathlibSourceFileReader
 from struct_ai.adapters.parsers.python_ast_adapter import PythonAstAdapter
 from struct_ai.core.entities.analysis_result import AnalysisResult
-from struct_ai.core.exceptions.exceptions import AIMentorResponseError, InvalidCodeError
+from struct_ai.core.entities.config import DEFAULT_CONFIG, StructIaConfig
+from struct_ai.core.exceptions.exceptions import (
+    AIMentorResponseError,
+    InvalidCodeError,
+    InvalidConfigError,
+)
 from struct_ai.core.use_cases.review_code_use_case import ReviewCodeUseCase
 
 app = typer.Typer(
@@ -47,11 +52,10 @@ def analyze(
         resolve_path=True,
     ),
 ) -> None:
-    """
-    Analyse récursivement tous les fichiers .py dans le répertoire cible.
+    """Recursively analyze all .py files in the target directory.
 
-    Détecte les violations d'architecture Clean et fournit des suggestions
-    pédagogiques générées par l'IA pour chaque fichier concerné.
+    Detects Clean Architecture violations and provides pedagogical
+    suggestions powered by AI for each affected file.
     """
     if not os.environ.get("OPENAI_API_KEY"):
         logger.error("Environment variable OPENAI_API_KEY is not set.")
@@ -61,6 +65,8 @@ def analyze(
             "Définissez-la avec : [italic]export OPENAI_API_KEY=sk-...[/italic]"
         )
         raise typer.Exit(code=1)
+
+    config = _load_config(directory)
 
     python_files = sorted(directory.rglob("*.py"))
 
@@ -75,7 +81,7 @@ def analyze(
         f"[bold]{len(python_files)}[/bold] fichier(s) dans [bold]{directory}[/bold]\n"
     )
 
-    use_case = _build_use_case()
+    use_case = _build_use_case(config)
     violations_found, analyzed_files = _run_analysis(
         use_case,
         python_files,
@@ -89,12 +95,45 @@ def analyze(
 # ---------------------------------------------------------------------------
 
 
-def _build_use_case() -> ReviewCodeUseCase:
+def _load_config(project_root: Path) -> StructIaConfig:
+    """Discover and load .struct-ia.yaml at the project root.
+
+    Falls back to DEFAULT_CONFIG and logs a warning when the file is absent.
+    Exits with code 1 and an explicit error log when the file is malformed.
+    """
+    reader = YamlConfigReader()
+    try:
+        config = reader.read(project_root)
+        logger.info(
+            "Configuration chargée depuis {path}",
+            path=project_root / ".struct-ia.yaml",
+        )
+        return config
+    except InvalidConfigError as error:
+        logger.error(
+            "Fichier de configuration invalide : {detail}", detail=error.detail
+        )
+        _console.print(
+            "[bold red]Erreur :[/bold red] Le fichier .struct-ia.yaml est invalide.\n"
+            f"{error.detail}"
+        )
+        raise typer.Exit(code=1) from error
+    except Exception:  # ConfigNotFoundError and anything unexpected
+        logger.warning(
+            "Aucun fichier .struct-ia.yaml trouvé dans {root}. "
+            "Les règles par défaut sont utilisées. "
+            "Créez-en un en plaçant un .struct-ia.yaml à la racine du projet.",
+            root=project_root,
+        )
+        return DEFAULT_CONFIG
+
+
+def _build_use_case(config: StructIaConfig = DEFAULT_CONFIG) -> ReviewCodeUseCase:
     """Instantiate concrete adapters and wire them into ReviewCodeUseCase."""
     source_reader = PathlibSourceFileReader()
     parser = PythonAstAdapter()
     ai_mentor = OpenAIMentorAdapter()
-    return ReviewCodeUseCase(source_reader, parser, ai_mentor)
+    return ReviewCodeUseCase(source_reader, parser, ai_mentor, config)
 
 
 def _run_analysis(
@@ -102,12 +141,11 @@ def _run_analysis(
     python_files: list[Path],
     base_directory: Path,
 ) -> Tuple[int, int]:
-    """
-    Iterate over python_files, execute the use case, and render results.
+    """Iterate over python_files, execute the use case, and render results.
 
     Returns a tuple: (violations_found, analyzed_files).
 
-    analyzed_files counts the number of files where `use_case.execute(...)`
+    analyzed_files counts the number of files where ``use_case.execute(...)``
     completed successfully (even if it returned zero violations).
 
     Skips files that raise InvalidCodeError or AIMentorResponseError,

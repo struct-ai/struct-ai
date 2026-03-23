@@ -1,3 +1,23 @@
+from pathlib import Path
+
+
+class ConfigNotFoundError(Exception):
+    """Raised when .struct-ia.yaml does not exist at the project root."""
+
+    def __init__(self, path: Path) -> None:
+        self.path = path
+        super().__init__(f"Configuration file not found: {path}")
+
+
+class InvalidConfigError(Exception):
+    """Raised when .struct-ia.yaml is malformed or fails Pydantic validation."""
+
+    def __init__(self, path: Path, detail: str) -> None:
+        self.path = path
+        self.detail = detail
+        super().__init__(f"Invalid configuration file {path}: {detail}")
+
+
 class InvalidCodeError(Exception):
     def __init__(
         self,

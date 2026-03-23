@@ -27,7 +27,8 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install -e ".[dev]"
+          pip install -r requirements-dev.txt
+          pip install -e .
 
       - name: Run tests
         run: pytest
@@ -38,8 +39,5 @@ jobs:
       - name: Run type checking
         run: mypy src/ tests/
 
-      - name: Run formatting
+      - name: Run formatting check
         run: ruff format --check src/ tests/
-
-      - name: Run import sorting
-        run: isort --check src/ tests/

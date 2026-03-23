@@ -1,33 +1,21 @@
 [project]
 name = "struct-ai"
 version = "0.1.0"
-dependencies = [
-    "pydantic",
-    "openai",
-    "typer",
-    "rich",
-    "loguru",
-]
+dependencies = []
 
 [project.scripts]
 struct-ia = "struct_ai.entrypoints.cli.main:app"
-
-[project.optional-dependencies]
-dev = ["pytest", "ruff", "black", "mypy", "isort"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
+testpaths = ["tests"]
 
 [tool.black]
 line-length = 88
 target-version = ['py312']
-
-[tool.isort]
-profile = "black"
-multi_line_output = 3
 
 [tool.mypy]
 python_version = "3.12"
