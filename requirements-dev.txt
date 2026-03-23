@@ -1,0 +1,7 @@
+-r requirements.txt
+pytest
+pytest-describe
+ruff
+black
+mypy
+types-PyYAML

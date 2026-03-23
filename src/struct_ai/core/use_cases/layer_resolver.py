@@ -1,106 +1,101 @@
-"""
-Pure resolution of file paths and import module names to Clean Architecture layers.
-No I/O; string manipulation only.
+"""Pure resolution of file paths and import module names to architectural layer levels.
+
+No I/O; string manipulation only. All public functions accept an optional
+``config`` parameter so they work with any project layout, not just struct_ai.
+When omitted, ``DEFAULT_CONFIG`` (the built-in struct_ai layout) is used.
 """
 
-from enum import Enum
 from typing import Optional
 
-
-# Layer order: lower index = lower layer. A layer may only import same or lower.
-class Layer(int, Enum):
-    DOMAIN = 0  # core
-    INFRASTRUCTURE = 1  # adapters
-    ENTRYPOINTS = 2  # entrypoints
+from struct_ai.core.entities.config import DEFAULT_CONFIG, StructIaConfig
 
 
-# Segment names in path that identify each layer (order matches Layer enum).
-_LAYER_SEGMENTS = ("core", "adapters", "entrypoints")
-
-# Package root; only imports under this are checked for layer violations.
-_PROJECT_PACKAGE = "struct_ai"
-
-
-def _normalize_path(file_path: str) -> str:
-    """
-    Normalize path for layer and package resolution.
+def _normalize_path(file_path: str, project_package: str) -> str:
+    """Normalize a file path for layer resolution.
 
     - Converts backslashes to forward slashes.
-    - Trims to project source when possible: after the first ``/src/`` segment
-      (e.g. ``/repo/src/struct_ai/core/...`` → ``struct_ai/core/...``).
-    - Strips a leading ``src/`` when present (repo-relative layout).
-    - Keeps only the path from the first ``struct_ai/`` onward so absolute
-      filesystem paths (e.g. ``/home/repo/struct_ai/core/...``) resolve like
-      repo-relative paths.
+    - Strips filesystem noise before ``/src/<project_package>/`` (repository
+      layout convention) without mangling paths where ``src`` is itself part
+      of a configured layer path (e.g. ``paths: ["src/core"]``).
+    - Keeps only the path from the first ``{project_package}/`` onward so
+      absolute filesystem paths resolve the same as repo-relative ones.
     """
     normalized = file_path.replace("\\", "/").strip()
-    if "/src/" in normalized:
-        normalized = normalized.split("/src/", 1)[1]
-    elif normalized.startswith("src/"):
-        normalized = normalized[4:]
-    marker = f"{_PROJECT_PACKAGE}/"
+    src_package_marker = f"/src/{project_package}/"
+    if src_package_marker in normalized:
+        tail = normalized.split(src_package_marker, 1)[1]
+        normalized = f"{project_package}/{tail}"
+    elif normalized.startswith(f"src/{project_package}/"):
+        normalized = normalized[4:]  # strip leading "src/"
+    marker = f"{project_package}/"
     if marker in normalized:
         normalized = normalized[normalized.find(marker) :]
     return normalized.lstrip("/")
 
 
-def path_to_layer(file_path: str) -> Optional[Layer]:
-    """
-    Map a file path to its layer.
+def path_to_layer(
+    file_path: str,
+    config: StructIaConfig = DEFAULT_CONFIG,
+) -> Optional[int]:
+    """Map a file path to its layer level (0 = lowest / most foundational).
 
-    Only the segment immediately after ``struct_ai`` defines the layer
-    (``struct_ai/core/...``, ``struct_ai/adapters/...``, ``struct_ai/entrypoints/...``).
-    This avoids misclassifying paths where ``core``, ``adapters``, or ``entrypoints``
-    appear in unrelated parent directories.
+    Only the path segment(s) immediately after ``config.project_package`` define
+    the layer, so unrelated parent directories with the same names are ignored.
+
+    Returns ``None`` when the file does not belong to any configured layer.
     """
-    normalized = _normalize_path(file_path)
+    normalized = _normalize_path(file_path, config.project_package)
     parts = [segment for segment in normalized.split("/") if segment]
+
     try:
-        package_index = parts.index(_PROJECT_PACKAGE)
+        package_index = parts.index(config.project_package)
     except ValueError:
         return None
+
     if package_index + 1 >= len(parts):
         return None
-    layer_segment = parts[package_index + 1]
-    if layer_segment in _LAYER_SEGMENTS:
-        return Layer(_LAYER_SEGMENTS.index(layer_segment))
+
+    # Path relative to the project package root (e.g. "core/entities/foo.py")
+    path_after_package = "/".join(parts[package_index + 1 :])
+
+    for level, layer in enumerate(config.layers):
+        for layer_path in layer.paths:
+            if path_after_package == layer_path or path_after_package.startswith(
+                layer_path + "/"
+            ):
+                return level
+
     return None
 
 
 def _module_to_path(module_name: str) -> str:
-    """Convert dotted module name to path-like string (e.g. struct_ai.core.foo -> struct_ai/core/foo)."""
+    """Convert dotted module name to a path-like string (dots → slashes)."""
     return module_name.replace(".", "/")
 
 
-def _current_package_from_path(file_path: str) -> str:
-    """
-    Derive current package from file path.
-
-    Uses the same normalization as path_to_layer so absolute paths and
-    ``.../src/struct_ai/...`` layouts yield ``struct_ai.core.entities.foo``.
-    """
-    normalized = _normalize_path(file_path)
+def _current_package_from_path(file_path: str, project_package: str) -> str:
+    """Derive current dotted package name from a file path."""
+    normalized = _normalize_path(file_path, project_package)
     if normalized.endswith(".py"):
         normalized = normalized[:-3]
     return normalized.replace("/", ".")
 
 
 def _resolve_relative_module(current_package: str, module_name: str) -> Optional[str]:
-    """
-    Resolve relative import to absolute module name.
-    E.g. current_package='struct_ai.core.entities', module_name='..interfaces.foo' -> 'struct_ai.core.interfaces.foo'
+    """Resolve a relative import to an absolute module name.
+
+    E.g. current_package='struct_ai.core.entities', module_name='..interfaces.foo'
+    → 'struct_ai.core.interfaces.foo'
     """
     if not module_name.startswith("."):
         return module_name
-    # Count leading dots and get the rest (e.g. '...bar' -> level=3, rest='bar')
     level = 0
     i = 0
     while i < len(module_name) and module_name[i] == ".":
         level += 1
         i += 1
-    rest = module_name[i:].lstrip(".")  # e.g. 'interfaces.foo' or ''
+    rest = module_name[i:].lstrip(".")
     parts = current_package.split(".")
-    # Go up 'level' times (e.g. struct_ai.core.entities + .. -> struct_ai.core)
     for _ in range(level):
         if not parts:
             return None
@@ -113,27 +108,31 @@ def _resolve_relative_module(current_package: str, module_name: str) -> Optional
     return base
 
 
-def resolved_import_path_to_layer(file_path: str, module_name: str) -> Optional[Layer]:
-    """
-    Resolve an import (given current file path and import module_name) to the target layer.
-    Returns None for external modules (outside struct_ai) or if resolution fails.
+def resolved_import_path_to_layer(
+    file_path: str,
+    module_name: str,
+    config: StructIaConfig = DEFAULT_CONFIG,
+) -> Optional[int]:
+    """Resolve an import to the target layer level.
+
+    Returns ``None`` for external modules (outside the configured project
+    package) or when resolution fails.
     """
     if module_name.startswith("."):
-        current_package = _current_package_from_path(file_path)
+        current_package = _current_package_from_path(file_path, config.project_package)
         absolute_module = _resolve_relative_module(current_package, module_name)
         if absolute_module is None:
             return None
-        if absolute_module != _PROJECT_PACKAGE and not absolute_module.startswith(
-            _PROJECT_PACKAGE + "."
+        if absolute_module != config.project_package and not absolute_module.startswith(
+            config.project_package + "."
         ):
             return None
-        path_like = _module_to_path(absolute_module)
-        return path_to_layer(path_like)
-    # Absolute import
+        return path_to_layer(_module_to_path(absolute_module), config)
+
     if (
-        not module_name.startswith(_PROJECT_PACKAGE + ".")
-        and module_name != _PROJECT_PACKAGE
+        not module_name.startswith(config.project_package + ".")
+        and module_name != config.project_package
     ):
         return None
-    path_like = _module_to_path(module_name)
-    return path_to_layer(path_like)
+
+    return path_to_layer(_module_to_path(module_name), config)

@@ -1,14 +1,14 @@
-"""
-ReviewCodeUseCase: orchestrates the full analysis pipeline.
+"""ReviewCodeUseCase: orchestrates the full analysis pipeline.
 
-Wires together SourceFileReaderPort, CodeParserPort, evaluate_layer_rules, and
-AIMentorPort into a single execute() call. No infrastructure dependency is
+Wires together SourceFileReaderPort, CodeParserPort, find_first_layer_violation,
+and AIMentorPort into a single execute() call. No infrastructure dependency is
 imported here: all I/O concerns are delegated to the injected ports.
 """
 
 from typing import Tuple
 
 from struct_ai.core.entities.analysis_result import AnalysisResult
+from struct_ai.core.entities.config import DEFAULT_CONFIG, StructIaConfig
 from struct_ai.core.interfaces.ai_mentor_port import AIMentorPort
 from struct_ai.core.interfaces.inputs.source_file_reader_port import (
     SourceFileReaderPort,
@@ -21,8 +21,7 @@ _SNIPPET_CONTEXT_LINES = 3
 
 
 class ReviewCodeUseCase:
-    """
-    Central use case that drives the end-to-end Clean Architecture analysis
+    """Central use case that drives the end-to-end Clean Architecture analysis
     for a single Python source file.
 
     Dependencies are injected at construction time so the class is fully
@@ -34,19 +33,20 @@ class ReviewCodeUseCase:
         source_reader: SourceFileReaderPort,
         parser: CodeParserPort,
         ai_mentor: AIMentorPort,
+        config: StructIaConfig = DEFAULT_CONFIG,
     ) -> None:
         self._source_reader = source_reader
         self._parser = parser
         self._ai_mentor = ai_mentor
+        self._config = config
 
     def execute(self, file_path: str) -> Tuple[AnalysisResult, ...]:
-        """
-        Run the full analysis pipeline on one Python source file.
+        """Run the full analysis pipeline on one Python source file.
 
         Steps:
           1. Read source code via SourceFileReaderPort.
           2. Parse imports via CodeParserPort.
-          3. Evaluate layer rules (pure function, no I/O).
+          3. Evaluate layer rules against the injected config (pure, no I/O).
           4. If a violation is found, call AIMentorPort for a pedagogical suggestion.
           5. Return an immutable tuple of AnalysisResult (empty when no violation).
 
@@ -56,10 +56,9 @@ class ReviewCodeUseCase:
             AIMentorResponseError: When the AI response is malformed (propagated as-is).
         """
         source_code = self._source_reader.read_text(file_path)
-
         imports = self._parser.parse_code(source_code)
 
-        violation = find_first_layer_violation(file_path, imports)
+        violation = find_first_layer_violation(file_path, imports, self._config)
         if violation is None:
             return ()
 
@@ -77,8 +76,8 @@ class ReviewCodeUseCase:
 
     @staticmethod
     def _extract_snippet(source_code: str, line_number: int) -> str:
-        """
-        Extract a small window of source lines centred on line_number (1-indexed).
+        """Extract a small window of source lines centred on line_number (1-indexed).
+
         Provides context for the AI mentor without sending the entire file.
         """
         lines = source_code.splitlines()
