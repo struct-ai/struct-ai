@@ -54,6 +54,7 @@ def analyze(
     pédagogiques générées par l'IA pour chaque fichier concerné.
     """
     if not os.environ.get("OPENAI_API_KEY"):
+        logger.error("Environment variable OPENAI_API_KEY is not set.")
         _console.print(
             "[bold red]Erreur :[/bold red] La variable d'environnement "
             "[bold]OPENAI_API_KEY[/bold] n'est pas définie.\n"
@@ -222,9 +223,7 @@ def _display_summary(
         )
         raise typer.Exit(code=1)
 
-    skipped_suffix = (
-        f" (et {skipped_files} ignoré(s))" if skipped_files > 0 else ""
-    )
+    skipped_suffix = f" (et {skipped_files} ignoré(s))" if skipped_files > 0 else ""
 
     if violations_found == 0:
         _console.print(

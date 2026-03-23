@@ -98,10 +98,17 @@ def test_analyze_exits_when_api_key_is_missing(
     """CLI must print an error and exit with code 1 when OPENAI_API_KEY is absent."""
     monkeypatch.delenv(_OPENAI_KEY, raising=False)
 
-    result = _runner.invoke(app, [str(empty_directory)], catch_exceptions=False)
+    with patch("struct_ai.entrypoints.cli.main.logger.error") as mock_error:
+        result = _runner.invoke(
+            app,
+            [str(empty_directory)],
+            catch_exceptions=False,
+        )
 
     assert result.exit_code == 1
     assert _OPENAI_KEY in result.output
+    assert mock_error.called
+    assert any(_OPENAI_KEY in str(call.args[0]) for call in mock_error.call_args_list)
 
 
 # ---------------------------------------------------------------------------
