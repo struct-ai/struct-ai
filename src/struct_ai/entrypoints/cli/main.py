@@ -75,8 +75,10 @@ def analyze(
     )
 
     use_case = _build_use_case()
-    violations_found = _run_analysis(use_case, python_files, directory)
-    _display_summary(len(python_files), violations_found)
+    violations_found, analyzed_files = _run_analysis(
+        use_case, python_files, directory
+    )
+    _display_summary(len(python_files), analyzed_files, violations_found)
 
 
 # ---------------------------------------------------------------------------
@@ -96,15 +98,20 @@ def _run_analysis(
     use_case: ReviewCodeUseCase,
     python_files: list[Path],
     base_directory: Path,
-) -> int:
+) -> Tuple[int, int]:
     """
     Iterate over python_files, execute the use case, and render results.
 
-    Returns the total number of violations found across all files.
+    Returns a tuple: (violations_found, analyzed_files).
+
+    analyzed_files counts the number of files where `use_case.execute(...)`
+    completed successfully (even if it returned zero violations).
+
     Skips files that raise InvalidCodeError or AIMentorResponseError,
     logging a warning or error respectively.
     """
     violations_found = 0
+    analyzed_files = 0
 
     for file_path in python_files:
         relative_path = file_path.relative_to(base_directory)
@@ -134,6 +141,8 @@ def _run_analysis(
             )
             continue
 
+        analyzed_files += 1
+
         if not results:
             _console.print(f"  [green]✓[/green] {relative_path}")
             continue
@@ -142,7 +151,7 @@ def _run_analysis(
             violations_found += 1
             _display_violation(result, relative_path)
 
-    return violations_found
+    return violations_found, analyzed_files
 
 
 def _display_violation(result: AnalysisResult, relative_path: Path) -> None:
@@ -190,16 +199,32 @@ def _display_violation(result: AnalysisResult, relative_path: Path) -> None:
     _console.print()
 
 
-def _display_summary(total_files: int, violations_found: int) -> None:
-    """Print a final summary line and exit with code 1 if violations were found."""
+def _display_summary(
+    discovered_files: int, analyzed_files: int, violations_found: int
+) -> None:
+    """Print a final summary line and exit with code 1 when needed."""
+    skipped_files = discovered_files - analyzed_files
+
+    if analyzed_files == 0:
+        _console.print(
+            f"\n[bold red]✗ Aucun fichier analysé[/bold red] "
+            f"({discovered_files} fichier(s) ignoré(s) à cause d'erreurs)"
+        )
+        raise typer.Exit(code=1)
+
+    skipped_suffix = (
+        f" (et {skipped_files} ignoré(s))" if skipped_files > 0 else ""
+    )
+
     if violations_found == 0:
         _console.print(
             f"\n[bold green]✓ Aucune violation détectée[/bold green] "
-            f"({total_files} fichier(s) analysé(s))"
+            f"({analyzed_files} fichier(s) analysé(s)){skipped_suffix}"
         )
-    else:
-        _console.print(
-            f"\n[bold red]✗ {violations_found} violation(s) détectée(s)[/bold red] "
-            f"sur {total_files} fichier(s) analysé(s)"
-        )
-        raise typer.Exit(code=1)
+        return
+
+    _console.print(
+        f"\n[bold red]✗ {violations_found} violation(s) détectée(s)[/bold red] "
+        f"sur {analyzed_files} fichier(s) analysé(s){skipped_suffix}"
+    )
+    raise typer.Exit(code=1)

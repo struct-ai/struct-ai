@@ -245,3 +245,36 @@ def test_analyze_counts_violations_correctly(
 
     assert result.exit_code == 1
     assert "2 violation(s)" in result.output
+
+
+# ---------------------------------------------------------------------------
+# Scenario 8: all files skipped due to errors → fail with no false confidence
+# ---------------------------------------------------------------------------
+
+
+def test_analyze_fails_when_all_files_are_skipped(
+    monkeypatch: pytest.MonkeyPatch,
+    directory_with_python_files: Path,
+) -> None:
+    """If every file is ignored due to errors, exit code must be 1."""
+    monkeypatch.setenv(_OPENAI_KEY, _TEST_API_KEY)
+
+    mock_use_case = MagicMock()
+    mock_use_case.execute.side_effect = [
+        InvalidCodeError("syntax error"),
+        AIMentorResponseError("bad JSON", raw_response="{}"),
+    ]
+
+    with patch(
+        "struct_ai.entrypoints.cli.main._build_use_case", return_value=mock_use_case
+    ):
+        result = _runner.invoke(
+            app,
+            [str(directory_with_python_files)],
+            catch_exceptions=False,
+        )
+
+    assert mock_use_case.execute.call_count == 2
+    assert result.exit_code == 1
+    assert "Aucun fichier analysé" in result.output
+    assert "Aucune violation détectée" not in result.output
