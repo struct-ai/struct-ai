@@ -12,6 +12,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+from click.testing import Result
 from typer.testing import CliRunner
 
 from struct_ai.core.entities.analysis_result import AnalysisResult
@@ -68,7 +69,7 @@ def empty_directory(tmp_path: Path) -> Path:
 def _run_with_mock_use_case(
     directory: Path,
     side_effects: list[object],
-) -> object:
+) -> Result:
     """
     Invoke `analyze <directory>` with ReviewCodeUseCase fully mocked.
 
