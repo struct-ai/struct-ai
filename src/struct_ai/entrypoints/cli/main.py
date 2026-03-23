@@ -76,7 +76,9 @@ def analyze(
 
     use_case = _build_use_case()
     violations_found, analyzed_files = _run_analysis(
-        use_case, python_files, directory
+        use_case,
+        python_files,
+        directory,
     )
     _display_summary(len(python_files), analyzed_files, violations_found)
 
@@ -176,7 +178,10 @@ def _display_violation(result: AnalysisResult, relative_path: Path) -> None:
     _console.print(
         Panel(
             Syntax(
-                suggestion.code_before, "python", theme="monokai", line_numbers=True
+                suggestion.code_before,
+                "python",
+                theme="monokai",
+                line_numbers=True,
             ),
             title="[red]Avant[/red]",
             border_style="red",
@@ -185,7 +190,12 @@ def _display_violation(result: AnalysisResult, relative_path: Path) -> None:
     )
     _console.print(
         Panel(
-            Syntax(suggestion.code_after, "python", theme="monokai", line_numbers=True),
+            Syntax(
+                suggestion.code_after,
+                "python",
+                theme="monokai",
+                line_numbers=True,
+            ),
             title="[green]Après[/green]",
             border_style="green",
             expand=False,
