@@ -90,15 +90,11 @@ def analyze(
         use_case = _build_use_case(config, effective_provider)
     except EnvironmentError as error:
         logger.error("Provider configuration error: {error}", error=error)
-        _console.print(
-            f"[bold red]Erreur :[/bold red] {error}"
-        )
+        _console.print(f"[bold red]Erreur :[/bold red] {error}")
         raise typer.Exit(code=1) from error
     except ImportError as error:
         logger.error("Missing optional dependency: {error}", error=error)
-        _console.print(
-            f"[bold red]Erreur :[/bold red] {error}"
-        )
+        _console.print(f"[bold red]Erreur :[/bold red] {error}")
         raise typer.Exit(code=1) from error
 
     violations_found, analyzed_files = _run_analysis(
