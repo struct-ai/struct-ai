@@ -8,9 +8,8 @@ Usage:
     struct-ia analyze <path_to_directory>
 """
 
-import os
 from pathlib import Path
-from typing import Tuple
+from typing import Optional, Tuple
 
 import typer
 from loguru import logger
@@ -19,12 +18,12 @@ from rich.panel import Panel
 from rich.syntax import Syntax
 from rich.text import Text
 
-from struct_ai.adapters.ai.openai_mentor_adapter import OpenAIMentorAdapter
+from struct_ai.adapters.ai.mentor_adapter_factory import build_mentor_adapter
 from struct_ai.adapters.config.yaml_config_reader import YamlConfigReader
 from struct_ai.adapters.io.pathlib_source_file_reader import PathlibSourceFileReader
 from struct_ai.adapters.parsers.python_ast_adapter import PythonAstAdapter
 from struct_ai.core.entities.analysis_result import AnalysisResult
-from struct_ai.core.entities.config import DEFAULT_CONFIG, StructIaConfig
+from struct_ai.core.entities.config import DEFAULT_CONFIG, ProviderSlug, StructIaConfig
 from struct_ai.core.exceptions.exceptions import (
     AIMentorResponseError,
     InvalidCodeError,
@@ -51,22 +50,28 @@ def analyze(
         dir_okay=True,
         resolve_path=True,
     ),
+    provider: Optional[ProviderSlug] = typer.Option(
+        None,
+        "--provider",
+        "-p",
+        help=(
+            "LLM provider to use: openai, anthropic, google, mistral, ollama. "
+            "Overrides .struct-ia.yaml and environment-variable auto-detection."
+        ),
+    ),
 ) -> None:
     """Recursively analyze all .py files in the target directory.
 
     Detects Clean Architecture violations and provides pedagogical
     suggestions powered by AI for each affected file.
-    """
-    if not os.environ.get("OPENAI_API_KEY"):
-        logger.error("Environment variable OPENAI_API_KEY is not set.")
-        _console.print(
-            "[bold red]Erreur :[/bold red] La variable d'environnement "
-            "[bold]OPENAI_API_KEY[/bold] n'est pas définie.\n"
-            "Définissez-la avec : [italic]export OPENAI_API_KEY=sk-...[/italic]"
-        )
-        raise typer.Exit(code=1)
 
+    The active LLM provider is resolved in this order:
+    --provider flag > .struct-ia.yaml 'provider' key > env-var auto-detection.
+    """
     config = _load_config(directory)
+
+    # CLI flag takes precedence over the config file value.
+    effective_provider: ProviderSlug | None = provider or config.provider
 
     python_files = sorted(directory.rglob("*.py"))
 
@@ -81,7 +86,17 @@ def analyze(
         f"[bold]{len(python_files)}[/bold] fichier(s) dans [bold]{directory}[/bold]\n"
     )
 
-    use_case = _build_use_case(config)
+    try:
+        use_case = _build_use_case(config, effective_provider)
+    except EnvironmentError as error:
+        logger.error("Provider configuration error: {error}", error=error)
+        _console.print(f"[bold red]Erreur :[/bold red] {error}")
+        raise typer.Exit(code=1) from error
+    except ImportError as error:
+        logger.error("Missing optional dependency: {error}", error=error)
+        _console.print(f"[bold red]Erreur :[/bold red] {error}")
+        raise typer.Exit(code=1) from error
+
     violations_found, analyzed_files = _run_analysis(
         use_case,
         python_files,
@@ -128,11 +143,18 @@ def _load_config(project_root: Path) -> StructIaConfig:
         return DEFAULT_CONFIG
 
 
-def _build_use_case(config: StructIaConfig = DEFAULT_CONFIG) -> ReviewCodeUseCase:
-    """Instantiate concrete adapters and wire them into ReviewCodeUseCase."""
+def _build_use_case(
+    config: StructIaConfig = DEFAULT_CONFIG,
+    provider: ProviderSlug | None = None,
+) -> ReviewCodeUseCase:
+    """Instantiate concrete adapters and wire them into ReviewCodeUseCase.
+
+    The ``provider`` argument overrides anything set in ``config.provider``.
+    Resolution is delegated entirely to ``build_mentor_adapter``.
+    """
     source_reader = PathlibSourceFileReader()
     parser = PythonAstAdapter()
-    ai_mentor = OpenAIMentorAdapter()
+    ai_mentor = build_mentor_adapter(provider)
     return ReviewCodeUseCase(source_reader, parser, ai_mentor, config)
 
 
