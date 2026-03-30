@@ -92,11 +92,10 @@ def describe_OpenAIMentorAdapter() -> None:
 
     def describe_build_user_message() -> None:
         def it_embeds_snippet_and_rule_name() -> None:
-            from struct_ai.adapters.ai.openai_mentor_adapter import OpenAIMentorAdapter
+            from struct_ai.adapters.ai.base_mentor_adapter import _build_user_message
 
-            adapter: Any = OpenAIMentorAdapter.__new__(OpenAIMentorAdapter)
             code = "import something_bad"
             rule = RuleType.LAYER_VIOLATION
-            message = adapter._build_user_message(code, rule)
+            message = _build_user_message(code, rule)
             assert code in message
             assert rule.value in message
