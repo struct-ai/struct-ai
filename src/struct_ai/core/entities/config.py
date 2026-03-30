@@ -5,7 +5,19 @@ outer). Position in the list IS the dependency level: a layer at index i may
 only import layers at index <= i.
 """
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
+
+ProviderSlug = Literal["openai", "anthropic", "google", "mistral", "ollama"]
+
+_VALID_PROVIDERS: tuple[ProviderSlug, ...] = (
+    "openai",
+    "anthropic",
+    "google",
+    "mistral",
+    "ollama",
+)
 
 
 class LayerConfig(BaseModel):
@@ -29,6 +41,11 @@ class StructIaConfig(BaseModel):
 
     ``layers`` is an ordered list from lowest to highest architectural layer.
     The index of each entry defines its dependency level.
+
+    ``provider`` selects the active LLM adapter. Accepted values:
+    "openai" | "anthropic" | "google" | "mistral" | "ollama".
+    When omitted, the factory falls back to auto-detection via environment
+    variables (OPENAI_API_KEY → openai, etc.).
     """
 
     project_package: str = Field(
@@ -38,6 +55,13 @@ class StructIaConfig(BaseModel):
         ...,
         min_length=1,
         description="Ordered list of architectural layers (lowest → highest).",
+    )
+    provider: ProviderSlug | None = Field(
+        default=None,
+        description=(
+            "LLM provider slug. One of: openai, anthropic, google, mistral, ollama. "
+            "Defaults to auto-detection from environment variables."
+        ),
     )
 
     model_config = {"frozen": True}
