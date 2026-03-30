@@ -68,6 +68,55 @@ def describe_analyze_command() -> None:
         result = _runner.invoke(app, [str(tmp_path)], catch_exceptions=False)
         assert result.exit_code == 1
 
+    def it_uses_provider_from_struct_ia_yaml_when_provider_flag_is_not_set(
+        tmp_path: Path,
+    ) -> None:
+        """
+        Provider selection must respect `.struct-ia.yaml` when `--provider`
+        is not passed.
+
+        This test patches `_build_use_case` so we do not import/instantiate
+        optional LLM SDKs; we only assert the CLI wires the expected provider
+        into the use-case construction path.
+        """
+        (tmp_path / "dummy.py").write_text("x = 1\n", encoding="utf-8")
+        (tmp_path / ".struct-ia.yaml").write_text(
+            "\n".join(
+                [
+                    "project_package: my_app",
+                    "layers:",
+                    "  - name: domain",
+                    "    paths:",
+                    "      - core",
+                    "  - name: infrastructure",
+                    "    paths:",
+                    "      - adapters",
+                    "  - name: entrypoints",
+                    "    paths:",
+                    "      - entrypoints",
+                    "provider: ollama",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        mock_use_case = MagicMock()
+        mock_use_case.execute.return_value = ()
+
+        def _build_use_case_spy(config: object, provider: object) -> MagicMock:
+            assert provider == "ollama"
+            return mock_use_case
+
+        with patch(
+            "struct_ai.entrypoints.cli.main._build_use_case",
+            side_effect=_build_use_case_spy,
+        ):
+            result = _runner.invoke(app, [str(tmp_path)], catch_exceptions=False)
+
+        assert result.exit_code == 0
+        assert "Aucune violation" in result.output
+
     def it_exits_cleanly_when_no_python_files_found(
         monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:

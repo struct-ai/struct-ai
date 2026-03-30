@@ -1,7 +1,14 @@
 [project]
 name = "struct-ai"
 version = "0.1.0"
-dependencies = []
+dependencies = [
+    "pydantic",
+    "openai",
+    "typer",
+    "rich",
+    "loguru",
+    "pyyaml",
+]
 
 [project.optional-dependencies]
 anthropic = ["anthropic>=0.25.0"]
