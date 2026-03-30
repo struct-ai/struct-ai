@@ -98,13 +98,13 @@ class GoogleMentorAdapter(AIMentorPort):
 
     def _call_api(self, user_message: str) -> str:
         response = self._model.generate_content(user_message)
-        content = getattr(response, "text", None)
-        if not content or not isinstance(content, str):
+        raw_content = getattr(response, "text", None)
+        if not raw_content or not isinstance(raw_content, str):
             raise AIMentorResponseError(
                 "Google Gemini returned an empty or non-text response.",
                 raw_response=None,
             )
-        return content
+        return str(raw_content)
 
     def _parse_response(self, raw_response: str) -> Suggestion:
         # Gemini occasionally wraps JSON in markdown fences; strip them defensively.

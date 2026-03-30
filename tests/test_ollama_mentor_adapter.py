@@ -46,7 +46,6 @@ def describe_OllamaMentorAdapter() -> None:
         ) -> None:
             monkeypatch.delenv("OLLAMA_BASE_URL", raising=False)
             monkeypatch.delenv("OLLAMA_MODEL", raising=False)
-            adapter: Any = _make_adapter.__wrapped__ if hasattr(_make_adapter, "__wrapped__") else _make_adapter()  # type: ignore[attr-defined]
             from struct_ai.adapters.ai.ollama_mentor_adapter import OllamaMentorAdapter
 
             instance: Any = OllamaMentorAdapter()

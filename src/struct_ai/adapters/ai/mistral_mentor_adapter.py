@@ -112,13 +112,13 @@ class MistralMentorAdapter(AIMentorPort):
                 "Mistral completion has no message.",
                 raw_response=None,
             )
-        content = getattr(message, "content", None)
-        if not content or not isinstance(content, str):
+        raw_content = getattr(message, "content", None)
+        if not raw_content or not isinstance(raw_content, str):
             raise AIMentorResponseError(
                 "Mistral returned an empty or non-text response.",
                 raw_response=None,
             )
-        return content
+        return str(raw_content)
 
     def _parse_response(self, raw_response: str) -> Suggestion:
         try:

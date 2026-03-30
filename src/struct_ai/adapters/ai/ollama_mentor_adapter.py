@@ -70,9 +70,7 @@ class OllamaMentorAdapter(AIMentorPort):
         model: str | None = None,
     ) -> None:
         self._base_url: str = (
-            base_url
-            or os.environ.get("OLLAMA_BASE_URL")
-            or _DEFAULT_BASE_URL
+            base_url or os.environ.get("OLLAMA_BASE_URL") or _DEFAULT_BASE_URL
         ).rstrip("/")
         self._model: str = model or os.environ.get("OLLAMA_MODEL") or _DEFAULT_MODEL
 
@@ -136,13 +134,13 @@ class OllamaMentorAdapter(AIMentorPort):
             ) from error
 
         message = response_payload.get("message", {})
-        content = message.get("content") if isinstance(message, dict) else None
-        if not content or not isinstance(content, str):
+        raw_content = message.get("content") if isinstance(message, dict) else None
+        if not raw_content or not isinstance(raw_content, str):
             raise AIMentorResponseError(
                 "Ollama returned an empty or malformed message content.",
                 raw_response=raw_body,
             )
-        return content
+        return str(raw_content)
 
     def _parse_response(self, raw_response: str) -> Suggestion:
         try:

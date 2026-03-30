@@ -9,7 +9,7 @@ The API key is resolved from the ANTHROPIC_API_KEY environment variable.
 
 import json
 import os
-from typing import TYPE_CHECKING, Final
+from typing import Any, Final
 
 from pydantic import ValidationError
 
@@ -17,9 +17,6 @@ from struct_ai.core.entities.rule_type import RuleType
 from struct_ai.core.entities.suggestion import Suggestion
 from struct_ai.core.exceptions.exceptions import AIMentorResponseError
 from struct_ai.core.interfaces.ai_mentor_port import AIMentorPort
-
-if TYPE_CHECKING:
-    import anthropic as anthropic_sdk
 
 _MODEL: Final[str] = "claude-3-5-sonnet-20241022"
 _MAX_TOKENS: Final[int] = 1024
@@ -75,9 +72,7 @@ class AnthropicMentorAdapter(AIMentorPort):
                 "ANTHROPIC_API_KEY is not set. "
                 "Provide it as an environment variable or pass it explicitly."
             )
-        self._client: anthropic_sdk.Anthropic = anthropic_sdk.Anthropic(
-            api_key=resolved_key
-        )
+        self._client: Any = anthropic_sdk.Anthropic(api_key=resolved_key)
 
     def suggest(self, code_snippet: str, violated_rule: RuleType) -> Suggestion:
         """
@@ -112,13 +107,13 @@ class AnthropicMentorAdapter(AIMentorPort):
             )
         first_block = response.content[0]
         # TextBlock carries a `text` attribute; guard against future block types.
-        content = getattr(first_block, "text", None)
-        if not content or not isinstance(content, str):
+        raw_content = getattr(first_block, "text", None)
+        if not raw_content or not isinstance(raw_content, str):
             raise AIMentorResponseError(
                 "Anthropic returned an empty or non-text response.",
                 raw_response=None,
             )
-        return content
+        return str(raw_content)
 
     def _parse_response(self, raw_response: str) -> Suggestion:
         try:
