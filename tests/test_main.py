@@ -50,15 +50,23 @@ def _run_with_mock_use_case(directory: Path, side_effects: list[object]) -> Resu
 
 
 def describe_analyze_command() -> None:
-    def it_exits_with_code_1_when_api_key_is_missing(
+    def it_exits_with_code_1_when_no_provider_is_configured(
         monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
+        """Provider resolution now lives in the factory, not the CLI guard.
+
+        When no API key or provider is available the factory raises
+        EnvironmentError which the CLI catches and turns into exit code 1.
+        """
         monkeypatch.delenv(_OPENAI_KEY, raising=False)
-        with patch("struct_ai.entrypoints.cli.main.logger.error") as mock_error:
-            result = _runner.invoke(app, [str(tmp_path)], catch_exceptions=False)
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+        monkeypatch.delenv("MISTRAL_API_KEY", raising=False)
+        monkeypatch.delenv("OLLAMA_BASE_URL", raising=False)
+        # Ensure at least one .py file exists so the CLI reaches _build_use_case.
+        (tmp_path / "dummy.py").write_text("x = 1\n", encoding="utf-8")
+        result = _runner.invoke(app, [str(tmp_path)], catch_exceptions=False)
         assert result.exit_code == 1
-        assert _OPENAI_KEY in result.output
-        assert mock_error.called
 
     def it_exits_cleanly_when_no_python_files_found(
         monkeypatch: pytest.MonkeyPatch, tmp_path: Path
