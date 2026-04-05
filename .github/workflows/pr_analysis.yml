@@ -1,0 +1,54 @@
+name: PR Analysis
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+# Minimal permissions: read code, write PR comments.
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  struct-ia-review:
+    name: struct-ia — Clean Architecture Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          # Full history required for git diff against origin/main
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install struct-ia
+        run: |
+          pip install --upgrade pip
+          pip install "git+https://github.com/struct-ai/struct-ai.git@main"
+
+      - name: Run struct-ia PR analysis
+        run: python -m struct_ai.entrypoints.github_action.main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.number }}
+          GITHUB_WORKSPACE: ${{ github.workspace }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          # Uncomment the provider you want to use instead of OpenAI:
+          # ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          # MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+          # OLLAMA_BASE_URL: ${{ secrets.OLLAMA_BASE_URL }}
+          #
+          # Set to "false" to make violations warnings-only (CI won't fail).
+          STRUCT_IA_FAIL_ON_VIOLATION: "true"
