@@ -8,6 +8,7 @@ dependencies = [
     "rich",
     "loguru",
     "pyyaml",
+    "requests",
 ]
 
 [project.optional-dependencies]
